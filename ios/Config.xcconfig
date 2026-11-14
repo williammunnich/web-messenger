@@ -1,0 +1,4 @@
+// Committed defaults. Put your own values in ios/Local.xcconfig (gitignored), copied from Local.xcconfig.example.
+DEVELOPMENT_TEAM =
+APP_BUNDLE_ID = com.example.messenger
+#include? "Local.xcconfig"

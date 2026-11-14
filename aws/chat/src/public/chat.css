@@ -1,0 +1,202 @@
+/**
+ * @file chat.css
+ * The look of the chat widget (chat.js builds the elements, this file styles them).
+ *
+ * THEME: every colour and the font are the CSS variables in the two blocks right below this comment
+ * (light first, then dark). Nothing further down contains a colour: the rules only use var(--name).
+ * To restyle the widget, do NOT edit the rules. Either change the values in these two blocks, or, from
+ * the page that embeds the widget, set the variables on .wmc anywhere in that page's own CSS, for example:
+ *
+ *   .wmc { --accent: #0f766e; --on-accent: #ffffff; }
+ *   @media (prefers-color-scheme: dark) { .wmc { --accent: #2dd4bf; --on-accent: #042f2e; } }
+ *
+ * The variable names are part of the embed API (docs/embed.md, "Theming"), so they are never renamed.
+ *
+ * @project web-messenger
+ * @author Claude (Anthropic), written for and prompted by William Munnich
+ * @date Last edited 2026-11-14
+ */
+
+/* ---------- THEME, light (the default) ----------
+   :where() gives these two blocks no weight in the cascade, so a plain `.wmc { --accent: ... }` rule anywhere in
+   the embedding page wins over them, whether it is read before or after this file. */
+:where(.wmc) {
+  color-scheme: light dark;
+  --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;   /* all widget text */
+
+  --accent: #2563eb;        /* launcher button, header, the visitor's own bubbles, send button, focus rings */
+  --on-accent: #ffffff;     /* text and icons on top of --accent */
+
+  --paper: #ffffff;         /* panel background, the form area */
+  --plate: #f3f4f6;         /* message list background */
+  --ink: #1f2328;           /* text */
+  --quiet: #5b6470;         /* secondary text, placeholders, typing dots */
+  --line: #1f232824;        /* thin borders */
+  --line-strong: #1f232847; /* stronger borders and underlines */
+
+  --bubble: #ffffff;        /* the owner's message bubbles, the preview bubble, the "Chat with me" pill */
+  --bubble-line: #1f232826; /* the border around those */
+  --field-bg: #ffffff;      /* text fields */
+  --field-line: #1f23288c;  /* the border of text fields */
+
+  --online: #1a9f53;        /* the dot on the launcher while the owner is available */
+  --offline: #9aa1ab;       /* the same dot when the owner is away or the chat is not connected */
+  --badge: #d92d20;         /* unread badge */
+  --on-badge: #ffffff;      /* the number on the unread badge */
+  --avatar-bg: #8b93a1;     /* the default avatar (used when no ownerPhoto is set): background */
+  --avatar-fg: #ffffff;     /* the default avatar: the silhouette */
+  --shadow: #000000;        /* the colour of every drop shadow (each rule sets its own strength) */
+}
+/* ---------- THEME, dark (follows the visitor's system setting) ---------- */
+@media (prefers-color-scheme: dark) {
+  :where(.wmc) {
+    --accent: #60a5fa;
+    --on-accent: #0b1220;
+    --paper: #1c1f24;
+    --plate: #14161a;
+    --ink: #e6e8eb;
+    --quiet: #9aa3af;
+    --line: #e6e8eb1f;
+    --line-strong: #e6e8eb3d;
+    --bubble: #262a31;
+    --bubble-line: #e6e8eb26;
+    --field-bg: #101216;
+    --field-line: #e6e8eb99;
+    --online: #34c26e;
+    --offline: #7d8590;
+    --badge: #f04438;
+    --on-badge: #ffffff;
+    --avatar-bg: #5b6470;
+    --avatar-fg: #e6e8eb;
+    --shadow: #000000;
+  }
+}
+/* ---------- end of the theme: no colour values below this line ---------- */
+
+/* ---------- the container: fixed to the bottom right corner of the page ---------- */
+.wmc, .wmc *, .wmc *::before, .wmc *::after { box-sizing: border-box; }
+.wmc { position: fixed; right: 20px; bottom: 20px; z-index: 50; font: 15px/1.45 var(--font); }
+.wmc[hidden], .wmc [hidden] { display: none !important; }
+
+/* ---------- the launcher: a round button, with a "Chat with me" pill beside it ---------- */
+.wmc-launch { display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
+.wmc-bubble { position: relative; width: 60px; height: 60px; border-radius: 50%; border: 0; background: var(--accent); color: var(--on-accent);
+  display: grid; place-items: center; cursor: pointer; transition: transform .2s; margin-left: auto;
+  box-shadow: 0 10px 30px -6px color-mix(in srgb, var(--accent) 50%, transparent), 0 2px 6px color-mix(in srgb, var(--shadow) 20%, transparent); }
+.wmc-bubble:hover { transform: scale(1.05); }
+.wmc-bubble svg { width: 28px; height: 28px; }
+/* the availability dot, bottom right of the button */
+.wmc-bubble::after { content: ""; position: absolute; right: 2px; bottom: 2px; width: 12px; height: 12px; border-radius: 50%;
+  background: var(--online); border: 2px solid var(--paper); }
+.wmc[data-online="false"] .wmc-bubble::after { background: var(--offline); }
+/* the unread badge, top right of the button */
+.wmc-badge { position: absolute; right: -6px; top: -6px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px;
+  background: var(--badge); color: var(--on-badge); font-size: 12px; font-weight: 700; display: grid; place-items: center; border: 2px solid var(--paper); }
+.wmc-label { height: 44px; padding: 0 16px; border-radius: 22px; border: 1px solid var(--bubble-line); background: var(--bubble); color: var(--ink);
+  font: inherit; font-size: 15px; cursor: pointer; white-space: nowrap; animation: wmc-in .3s cubic-bezier(.2,.7,.2,1);
+  box-shadow: 0 8px 24px -8px color-mix(in srgb, var(--shadow) 27%, transparent); }
+.wmc-label:hover { border-color: var(--accent); }
+
+/* ---------- the avatar: the site's ownerPhoto, or the default silhouette drawn by chat.js ---------- */
+.wmc-avatar { display: block; flex: none; border-radius: 50%; }
+.wmc-avatar-bg { fill: var(--avatar-bg); }
+.wmc-avatar-fg { fill: var(--avatar-fg); }
+
+/* ---------- the preview bubble: a small speech bubble above the launcher, at most 260px wide, dismissible ---------- */
+.wmc-peek { position: relative; width: max-content; max-width: 260px; margin: 0 0 12px auto; border-radius: 16px 16px 4px 16px;
+  border: 1px solid var(--bubble-line); background: var(--bubble); color: var(--ink);
+  box-shadow: 0 12px 32px -8px color-mix(in srgb, var(--shadow) 27%, transparent); animation: wmc-in .25s cubic-bezier(.2,.7,.2,1); }
+.wmc-peek-open { display: flex; gap: 10px; align-items: flex-start; width: 100%; margin: 0; padding: 10px 32px 10px 12px; border: 0; border-radius: inherit;
+  background: none; color: inherit; text-align: left; font: inherit; font-size: 14px; line-height: 1.35; cursor: pointer; }
+.wmc-peek-open:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wmc-peek-body { display: grid; gap: 1px; min-width: 0; }
+.wmc-peek-name { font-weight: 700; font-size: 12px; color: var(--quiet); }
+.wmc-peek-text { overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.wmc-peek-x { position: absolute; top: 4px; right: 4px; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 50%; background: transparent;
+  color: var(--quiet); display: grid; place-items: center; cursor: pointer; }
+.wmc-peek-x:hover, .wmc-peek-x:focus-visible { background: var(--line); color: var(--ink); }
+.wmc-peek-x svg { width: 14px; height: 14px; }
+
+/* ---------- the panel: the open chat, nearly the full height of the window ---------- */
+.wmc-panel { position: absolute; right: 0; bottom: 76px; width: 380px; height: min(680px, calc(100vh - 110px)); display: flex; flex-direction: column;
+  background: var(--paper); color: var(--ink); border-radius: 20px; overflow: hidden; border: 1px solid var(--line);
+  box-shadow: 0 24px 64px -12px color-mix(in srgb, var(--shadow) 33%, transparent), 0 4px 12px color-mix(in srgb, var(--shadow) 13%, transparent);
+  animation: wmc-in .22s cubic-bezier(.2,.7,.2,1); }
+.wmc-head { display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: var(--accent); color: var(--on-accent); }
+.wmc-head .wmc-avatar { border: 2px solid color-mix(in srgb, var(--on-accent) 35%, transparent); }
+.wmc-who { flex: 1; min-width: 0; }
+.wmc-name { margin: 0; font-family: var(--font); font-weight: 700; font-size: 1.05rem; }
+.wmc-status { margin: 0; font-size: .8125rem; opacity: .9; }
+/* the close button is drawn in reverse (accent on on-accent) so it stands out on the header */
+.wmc-close { width: 38px; height: 38px; border: 0; border-radius: 50%; background: var(--on-accent); color: var(--accent); display: grid; place-items: center;
+  cursor: pointer; box-shadow: 0 1px 4px color-mix(in srgb, var(--shadow) 27%, transparent); }
+.wmc-close svg { width: 18px; height: 18px; stroke-width: 2.8; }
+.wmc-close:focus-visible { outline: 3px solid var(--on-accent); outline-offset: 2px; }
+
+/* ---------- messages ---------- */
+.wmc-list { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 8px; background: var(--plate); overscroll-behavior: contain; }
+.wmc-msg { max-width: 80%; display: flex; flex-direction: column; }
+.wmc-msg time { font-size: 11px; color: var(--quiet); margin-top: 3px; padding: 0 6px; }
+.wmc-text { margin: 0; padding: 9px 13px; border-radius: 18px; white-space: pre-wrap; overflow-wrap: anywhere; }
+/* "them" is the owner (left), "me" is the visitor (right) */
+.wmc-them { align-self: flex-start; }
+.wmc-them .wmc-text { background: var(--bubble); border: 1px solid var(--bubble-line); color: var(--ink); border-bottom-left-radius: 6px; }
+.wmc-me { align-self: flex-end; align-items: flex-end; }
+.wmc-me .wmc-text { background: var(--accent); color: var(--on-accent); border-bottom-right-radius: 6px; }
+.wmc-pending { opacity: .6; }
+.wmc-error { align-self: center; margin: 4px 0; font-size: 12px; color: var(--accent); }
+.wmc-typing { display: flex; gap: 4px; padding: 0 16px 10px 28px; background: var(--plate); }
+.wmc-typing span { width: 7px; height: 7px; border-radius: 50%; background: var(--quiet); animation: wmc-dot 1.2s infinite; }
+.wmc-typing span:nth-child(2) { animation-delay: .15s; }
+.wmc-typing span:nth-child(3) { animation-delay: .3s; }
+
+/* ---------- the form: contact details (folded away until asked for), the message box, the send button ---------- */
+.wmc-form { padding: 10px 12px 6px; border-top: 1px solid var(--line); background: var(--paper); }
+.wmc-whois { display: grid; gap: 6px; margin-bottom: 8px; }
+.wmc-leadnote { margin: 0 0 2px; font-size: 13px; color: var(--quiet); }
+.wmc-more { justify-self: start; border: 0; background: none; padding: 2px 2px 4px; color: var(--ink); font: inherit; font-size: 13px;
+  text-decoration: underline; text-underline-offset: .2em; text-decoration-color: var(--line-strong); cursor: pointer; max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wmc-more:hover, .wmc-more:focus-visible { text-decoration-color: var(--accent); }
+.wmc-fields { display: grid; gap: 6px; }
+.wmc-field, .wmc-input { width: 100%; border: 1.5px solid var(--field-line); border-radius: 12px; padding: 9px 12px; background: var(--field-bg); color: var(--ink);
+  font: inherit; outline: none; }
+.wmc-field::placeholder, .wmc-input::placeholder { color: var(--quiet); opacity: 1; }
+.wmc-field:focus, .wmc-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+.wmc-field.wmc-bad { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent); }
+.wmc-row { display: flex; gap: 8px; align-items: flex-end; }
+.wmc-input { resize: none; max-height: 120px; }
+.wmc-send { flex: none; width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--accent); color: var(--on-accent); display: grid; place-items: center;
+  cursor: pointer; box-shadow: 0 2px 8px -2px color-mix(in srgb, var(--shadow) 40%, transparent); }
+.wmc-send svg { width: 20px; height: 20px; }
+.wmc-send:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+.wmc-note { margin: 0; padding: 4px 14px 10px; font-size: 11px; color: var(--quiet); background: var(--paper); }
+.wmc-note a { color: inherit; }
+
+/* ---------- the opt-out line's buttons (chat.js puts them into the page's #wm-privacy-line; they take the page's own colour) ---------- */
+.linkish { background: none; border: 0; padding: 0; font: inherit; color: inherit; text-decoration: underline; text-underline-offset: .2em; cursor: pointer; }
+
+@keyframes wmc-in { from { opacity: 0; transform: translateY(10px) scale(.98); } }
+@keyframes wmc-dot { 0%, 60%, 100% { opacity: .3; transform: none; } 30% { opacity: 1; transform: translateY(-3px); } }
+
+/* ---------- phones: the open chat is full screen, with a compact header, 16px inputs (so iOS does not zoom),
+   and room for the home bar and the keyboard ---------- */
+@media (max-width: 480px) {
+  .wmc { right: 16px; bottom: 16px; }
+  .wmc[data-open="true"] { inset: 0; }
+  .wmc[data-open="true"] .wmc-bubble, .wmc[data-open="true"] .wmc-peek { display: none; }
+  .wmc-label { display: none; }
+  .wmc-peek { max-width: min(260px, calc(100vw - 32px)); }
+  .wmc-panel { position: fixed; inset: 0; width: auto; height: 100dvh; border-radius: 0; border: 0; }
+  .wmc-head { padding: 10px 12px; padding-top: max(10px, env(safe-area-inset-top)); gap: 10px; }
+  .wmc-head .wmc-avatar { width: 32px; height: 32px; }
+  .wmc-name { font-size: .95rem; }
+  .wmc-status { font-size: .75rem; }
+  .wmc-list { padding: 12px; }
+  .wmc-msg { max-width: 86%; }
+  .wmc-form { padding: 8px 10px 4px; }
+  .wmc-field, .wmc-input { font-size: 16px; padding: 8px 12px; }
+  .wmc-fields { gap: 5px; }
+  .wmc-note { padding: 2px 12px max(8px, env(safe-area-inset-bottom)); font-size: 10.5px; }
+}
+@media (prefers-reduced-motion: reduce) { .wmc-panel, .wmc-peek, .wmc-label { animation: none; } .wmc-typing span { animation: none; opacity: .6; } }

@@ -1,0 +1,312 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Live chat for a website (docs/chat-protocol.md). One Node Lambda (src/handler.mjs) behind a WebSocket API (visitors and
+  the owner) and an HTTP API (owner API, Google sign-in, the inbox page and the widget files). One DynamoDB table.
+  Push notifications go straight to Apple (APNs, token auth). Custom domains and email are optional.
+
+Parameters:
+  Prefix: { Type: String, Default: messenger, AllowedPattern: '[a-z][a-z0-9-]{1,30}', Description: 'Names everything: table, function, queue, SSM path' }
+  AllowedEmail: { Type: String, Description: 'The one Google account allowed into the inbox and the app' }
+  GoogleClientId: { Type: String, Default: '', Description: 'Google OAuth client id. Empty: sign-in shows a setup message' }
+  AllowedOrigins: { Type: String, Default: '', Description: 'Comma-separated sites allowed to open the chat, e.g. https://example.com,https://www.example.com' }
+  OwnerName: { Type: String, Default: Support, Description: 'The name visitors see in the chat' }
+  SiteUrl: { Type: String, Default: '', Description: 'Your site, used in email replies and to spot internal referrers' }
+  ChatDomain: { Type: String, Default: '', Description: 'Optional WebSocket host, e.g. chat.example.com. Needs CertificateArn' }
+  InboxDomain: { Type: String, Default: '', Description: 'Optional HTTP host, e.g. inbox.example.com. Needs CertificateArn' }
+  CertificateArn: { Type: String, Default: '', Description: 'ACM certificate in this region covering ChatDomain and InboxDomain' }
+  ApnsTeamId: { Type: String, Default: '', Description: 'Your Apple developer team id. Empty: no push notifications' }
+  ApnsTopic: { Type: String, Default: '', Description: 'The iPhone app bundle id' }
+  CriticalAlerts: { Type: String, Default: '0', AllowedValues: ['0', '1'], Description: 'Set to 1 once Apple grants the Critical Alerts entitlement to the app' }
+  MailAddress: { Type: String, Default: '', Description: 'Optional address whose mail lands in the inbox, e.g. info@example.com (docs/deploy.md)' }
+  FromAddress: { Type: String, Default: '', Description: 'Optional sender for email replies, e.g. Your Name <info@example.com>. Needs a verified SES identity' }
+
+Conditions:
+  HasChatDomain: !Not [!Equals [!Ref ChatDomain, '']]
+  HasInboxDomain: !Not [!Equals [!Ref InboxDomain, '']]
+  HasMail: !Not [!Equals [!Ref MailAddress, '']]
+  HasFrom: !Not [!Equals [!Ref FromAddress, '']]
+
+Globals:
+  Function:
+    Runtime: nodejs22.x
+    Architectures: [arm64]
+    MemorySize: 256
+    Timeout: 15
+
+Resources:
+  ChatTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !Ref Prefix
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - { AttributeName: pk, AttributeType: S }
+        - { AttributeName: sk, AttributeType: S }
+        - { AttributeName: gpk, AttributeType: S }
+        - { AttributeName: gsk, AttributeType: N }
+      KeySchema: [{ AttributeName: pk, KeyType: HASH }, { AttributeName: sk, KeyType: RANGE }]
+      GlobalSecondaryIndexes:
+        - IndexName: byLast
+          KeySchema: [{ AttributeName: gpk, KeyType: HASH }, { AttributeName: gsk, KeyType: RANGE }]
+          Projection: { ProjectionType: ALL }
+      TimeToLiveSpecification: { AttributeName: exp, Enabled: true }
+      PointInTimeRecoverySpecification: { PointInTimeRecoveryEnabled: true }
+      SSESpecification: { SSEEnabled: true }
+
+  # optional: mail to MailAddress. SES stores each message here (kept 30 days), then calls the function
+  MailBucket:
+    Type: AWS::S3::Bucket
+    Condition: HasMail
+    Properties:
+      BucketName: !Sub ${Prefix}-mail-${AWS::AccountId}
+      PublicAccessBlockConfiguration: { BlockPublicAcls: true, IgnorePublicAcls: true, BlockPublicPolicy: true, RestrictPublicBuckets: true }
+      LifecycleConfiguration: { Rules: [{ Id: expire-30-days, Status: Enabled, ExpirationInDays: 30 }] }
+      BucketEncryption: { ServerSideEncryptionConfiguration: [{ ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 } }] }
+  MailBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Condition: HasMail
+    Properties:
+      Bucket: !Ref MailBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ses.amazonaws.com }
+            Action: s3:PutObject
+            Resource: !Sub ${MailBucket.Arn}/inbound/*
+            Condition: { StringEquals: { 'aws:SourceAccount': !Ref AWS::AccountId } }
+  MailPermission:
+    Type: AWS::Lambda::Permission
+    Condition: HasMail
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref ChatFunction
+      Principal: ses.amazonaws.com
+      SourceAccount: !Ref AWS::AccountId
+  MailRuleSet:
+    Type: AWS::SES::ReceiptRuleSet
+    Condition: HasMail
+    Properties: { RuleSetName: !Sub '${Prefix}-inbound' }
+  MailRule:
+    Type: AWS::SES::ReceiptRule
+    Condition: HasMail
+    DependsOn: [MailBucketPolicy, MailPermission]
+    Properties:
+      RuleSetName: !Ref MailRuleSet
+      Rule:
+        Name: mail-to-chat
+        Enabled: true
+        ScanEnabled: true
+        TlsPolicy: Optional
+        Recipients: [!Ref MailAddress]
+        Actions:
+          - S3Action: { BucketName: !Ref MailBucket, ObjectKeyPrefix: inbound/ }
+          - LambdaAction: { FunctionArn: !GetAtt ChatFunction.Arn, InvocationType: Event }
+
+  # an unanswered chat rings again: messages wait here (DelaySeconds), then come back to the function
+  RemindQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub '${Prefix}-remind'
+      VisibilityTimeout: 60
+      MessageRetentionPeriod: 3600
+
+  # ---------------------------------------------------------------- WebSocket API
+  WsApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: !Sub '${Prefix}-ws'
+      ProtocolType: WEBSOCKET
+      RouteSelectionExpression: '$request.body.action'
+  WsIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref WsApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ChatFunction.Arn}/invocations
+  WsConnect:
+    Type: AWS::ApiGatewayV2::Route
+    Properties: { ApiId: !Ref WsApi, RouteKey: $connect, Target: !Sub 'integrations/${WsIntegration}' }
+  WsDisconnect:
+    Type: AWS::ApiGatewayV2::Route
+    Properties: { ApiId: !Ref WsApi, RouteKey: $disconnect, Target: !Sub 'integrations/${WsIntegration}' }
+  WsDefault:
+    Type: AWS::ApiGatewayV2::Route
+    Properties: { ApiId: !Ref WsApi, RouteKey: $default, Target: !Sub 'integrations/${WsIntegration}' }
+  WsDeployment:
+    Type: AWS::ApiGatewayV2::Deployment
+    DependsOn: [WsConnect, WsDisconnect, WsDefault]
+    Properties: { ApiId: !Ref WsApi }
+  WsStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref WsApi
+      StageName: prod
+      DeploymentId: !Ref WsDeployment
+      DefaultRouteSettings: { ThrottlingBurstLimit: 50, ThrottlingRateLimit: 20 }
+  WsPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref ChatFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${WsApi}/*
+  WsDomain:
+    Type: AWS::ApiGatewayV2::DomainName
+    Condition: HasChatDomain
+    Properties:
+      DomainName: !Ref ChatDomain
+      DomainNameConfigurations: [{ CertificateArn: !Ref CertificateArn, EndpointType: REGIONAL, SecurityPolicy: TLS_1_2 }]
+  WsMapping:
+    Type: AWS::ApiGatewayV2::ApiMapping
+    Condition: HasChatDomain
+    DependsOn: WsStage
+    Properties: { ApiId: !Ref WsApi, DomainName: !Ref WsDomain, Stage: prod }
+
+  # ---------------------------------------------------------------- HTTP API: owner API, sign-in, inbox, widget
+  # Plain resources rather than AWS::Serverless::HttpApi: the function's environment needs this API's address, and
+  # the SAM resource would make the API and the function depend on each other.
+  HttpApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: !Sub '${Prefix}-http'
+      ProtocolType: HTTP
+  HttpIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: AWS_PROXY
+      PayloadFormatVersion: '2.0'
+      IntegrationUri: !GetAtt ChatFunction.Arn
+  HttpRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties: { ApiId: !Ref HttpApi, RouteKey: $default, Target: !Sub 'integrations/${HttpIntegration}' }
+  HttpStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref HttpApi
+      StageName: $default
+      AutoDeploy: true
+      DefaultRouteSettings: { ThrottlingBurstLimit: 50, ThrottlingRateLimit: 20 }
+  HttpPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref ChatFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*
+  HttpDomain:
+    Type: AWS::ApiGatewayV2::DomainName
+    Condition: HasInboxDomain
+    Properties:
+      DomainName: !Ref InboxDomain
+      DomainNameConfigurations: [{ CertificateArn: !Ref CertificateArn, EndpointType: REGIONAL, SecurityPolicy: TLS_1_2 }]
+  HttpMapping:
+    Type: AWS::ApiGatewayV2::ApiMapping
+    Condition: HasInboxDomain
+    DependsOn: HttpStage
+    Properties: { ApiId: !Ref HttpApi, DomainName: !Ref HttpDomain, Stage: $default }
+
+  ChatFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Ref Prefix
+      CodeUri: src/
+      Handler: handler.handler
+      Environment:
+        Variables:
+          TABLE: !Ref ChatTable
+          ALLOWED_EMAIL: !Ref AllowedEmail
+          GOOGLE_CLIENT_ID: !Ref GoogleClientId
+          GOOGLE_SECRET_PARAM: !Sub /${Prefix}/google-client-secret
+          SESSION_KEY_PARAM: !Sub /${Prefix}/session-key
+          APNS_KEY_PARAM: !Sub /${Prefix}/apns-key
+          APNS_KEY_ID_PARAM: !Sub /${Prefix}/apns-key-id
+          APNS_TEAM_ID: !Ref ApnsTeamId
+          APNS_TOPIC: !Ref ApnsTopic
+          CRITICAL_ALERTS: !Ref CriticalAlerts
+          OWNER_NAME: !Ref OwnerName
+          SITE_URL: !Ref SiteUrl
+          WS_ENDPOINT: !Sub https://${WsApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/prod
+          WS_URL: !If [HasChatDomain, !Sub 'wss://${ChatDomain}', !Sub 'wss://${WsApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/prod']
+          # the demo page is served from the HTTP API, so that origin may always open the chat
+          ALLOWED_ORIGINS: !If
+            - HasInboxDomain
+            - !Sub '${AllowedOrigins},https://${HttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix},https://${InboxDomain}'
+            - !Sub '${AllowedOrigins},https://${HttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}'
+          REMIND_QUEUE_URL: !Ref RemindQueue
+          MAIL_BUCKET: !If [HasMail, !Ref MailBucket, '']
+          FROM_ADDRESS: !Ref FromAddress
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref ChatTable }
+        - SQSSendMessagePolicy: { QueueName: !GetAtt RemindQueue.QueueName }
+        - Statement:
+            - Effect: Allow
+              Action: ssm:GetParameter
+              Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${Prefix}/*
+            - Effect: Allow
+              Action: execute-api:ManageConnections
+              Resource: !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${WsApi}/prod/POST/@connections/*
+      Events:
+        Remind:
+          Type: SQS
+          Properties: { Queue: !GetAtt RemindQueue.Arn, BatchSize: 10 }
+
+  # optional permissions, only when email is on
+  MailReadPolicy:
+    Type: AWS::IAM::RolePolicy
+    Condition: HasMail
+    Properties:
+      RoleName: !Ref ChatFunctionRole
+      PolicyName: read-inbound-mail
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: s3:GetObject
+            Resource: !Sub ${MailBucket.Arn}/inbound/*
+  MailSendPolicy:
+    Type: AWS::IAM::RolePolicy
+    Condition: HasFrom
+    Properties:
+      RoleName: !Ref ChatFunctionRole
+      PolicyName: send-email-replies
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: ses:SendEmail
+            Resource: '*'
+
+  ChatLogs:
+    Type: AWS::Logs::LogGroup
+    Properties: { LogGroupName: !Sub '/aws/lambda/${Prefix}', RetentionInDays: 90 }   # logs carry visitor ids and IP addresses: kept 90 days
+
+Outputs:
+  InboxUrl:
+    Description: The owner's inbox, and the host to type into the iPhone app.
+    Value: !If [HasInboxDomain, !Sub 'https://${InboxDomain}/', !Sub 'https://${HttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/']
+  ChatWs:
+    Description: The WebSocket address.
+    Value: !If [HasChatDomain, !Sub 'wss://${ChatDomain}', !Sub 'wss://${WsApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/prod']
+  ChatDomainTarget:
+    Condition: HasChatDomain
+    Description: Point ChatDomain here (Route 53 alias or CNAME).
+    Value: !GetAtt WsDomain.RegionalDomainName
+  ChatDomainZone:
+    Condition: HasChatDomain
+    Value: !GetAtt WsDomain.RegionalHostedZoneId
+  InboxDomainTarget:
+    Condition: HasInboxDomain
+    Description: Point InboxDomain here (Route 53 alias or CNAME).
+    Value: !GetAtt HttpDomain.RegionalDomainName
+  InboxDomainZone:
+    Condition: HasInboxDomain
+    Value: !GetAtt HttpDomain.RegionalHostedZoneId
+  TableName:
+    Value: !Ref ChatTable
+  FunctionName:
+    Value: !Ref ChatFunction

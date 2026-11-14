@@ -1,0 +1,43 @@
+<!doctype html>
+<!--
+  @file demo.html
+  A plain page that embeds the widget, served at /demo by web.mjs, for trying the chat before it is on a real site.
+  It shows the three page hooks (docs/embed.md): data-chat-open, data-chat-prefill and data-lead, and the
+  #wm-privacy-line element that the widget fills with its opt-out line.
+
+  @project web-messenger
+  @author Claude (Anthropic), written for and prompted by William Munnich
+  @date Last edited 2026-11-14
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Messenger demo</title>
+<style>
+:root{color-scheme:light dark}
+/* the page's own two colours; the widget's colours are in /widget/chat.css */
+body{margin:0;font:16px/1.55 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#f6f7f9;color:#16181d}
+@media (prefers-color-scheme:dark){body{background:#0f1115;color:#e6e8ec}}
+main{max-width:40rem;margin:0 auto;padding:12vh 20px 40px}
+h1{font-size:1.6rem;margin:0 0 .4em}
+code{font-size:.9em}
+a.button{display:inline-block;margin:.6em .4em 0 0;padding:.5em .9em;border:1px solid currentColor;border-radius:8px;color:inherit;text-decoration:none}
+/* the small print at the bottom of the page, where the widget writes its opt-out line */
+.smallprint{max-width:40rem;margin:0 auto;padding:0 20px 28px;opacity:.75;font-size:.75rem;line-height:1.5}
+</style>
+</head>
+<body>
+<main>
+  <h1>Messenger demo</h1>
+  <p>This page exists to try the chat widget. Open the bubble in the corner and write something. It reaches the <a href="/">inbox</a> and the iPhone app.</p>
+  <p>Any link can open the chat, with text ready, or as an inquiry that asks for contact details:</p>
+  <a class="button" href="#chat" data-chat-open>Open the chat</a>
+  <a class="button" href="#chat" data-chat-open data-chat-prefill="I have a question about " >Open with text</a>
+  <a class="button" href="#chat" data-chat-open data-lead="Project" data-chat-prefill="I have a project: ">Project inquiry</a>
+</main>
+<p class="smallprint" id="wm-privacy-line"></p>
+<script src="/widget/chat.js" defer></script>
+</body>
+</html>

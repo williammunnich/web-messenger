@@ -1,0 +1,147 @@
+<!doctype html>
+<!--
+  @file inbox.html
+  The owner's web inbox, served at / by web.mjs to the signed-in owner only. It lists conversations, shows one
+  thread, sends replies and changes the settings, over the owner HTTP API and the owner WebSocket
+  (docs/chat-protocol.md). Visitor text is only ever put on the page as text (textContent), never as HTML.
+
+  THEME: every colour is one of the CSS variables in the :root block at the top of the <style> element
+  (light first, then dark). Change the values there; the rules below only use var(--name).
+
+  @project web-messenger
+  @author Claude (Anthropic), written for and prompted by William Munnich
+  @date Last edited 2026-11-14
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Messenger inbox</title>
+<style>
+/* THEME, light. Every colour of this page is set here. */
+:root{color-scheme:light dark;
+  --bg:#f6f7f9;      /* page background, the reply box */
+  --card:#ffffff;    /* header, conversation list, buttons */
+  --ink:#16181d;     /* text */
+  --mute:#667085;    /* secondary text */
+  --line:#e4e7ec;    /* borders */
+  --acc:#2563eb;     /* your own bubbles and the unread count */
+  --on-acc:#ffffff;  /* text on top of --acc */
+  --good:#12a150;    /* the "online" dot */
+  --bub:#eef0f3}     /* the visitor's bubbles, the selected conversation */
+/* THEME, dark (follows the system setting). */
+@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--card:#171a21;--ink:#e6e8ec;--mute:#98a2b3;--line:#262b35;--acc:#60a5fa;--on-acc:#0b1220;--good:#34c26e;--bub:#232833}}
+/* End of the theme: no colour values below this line. */
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;display:flex;flex-direction:column}
+header{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--card)}
+h1{font-size:16px;margin:0}
+.mute{color:var(--mute)}
+.push{margin-left:auto}
+button,select{font:inherit;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:7px;padding:4px 9px;cursor:pointer}
+a{color:inherit}
+main{flex:1;min-height:0;display:grid;grid-template-columns:minmax(220px,320px) 1fr}
+#chatlist{border-right:1px solid var(--line);overflow:auto;background:var(--card)}
+.cv{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:10px 12px;background:none}
+.cv.sel{background:var(--bub)}
+.cv b{display:flex;justify-content:space-between;gap:8px}
+.cv .onl{color:var(--good)}
+.cv .un{background:var(--acc);color:var(--on-acc);border-radius:9px;padding:0 6px;font-size:12px}
+.cv span.last,.cv span.mute{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cv span.mute{font-size:12px}
+#chatthread{display:flex;flex-direction:column;min-height:0;min-width:0}
+#chathead{padding:10px 14px;border-bottom:1px solid var(--line);background:var(--card)}
+#chatmsgs{flex:1;min-height:0;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:6px}
+.bub{max-width:75%;padding:7px 11px;border-radius:14px;background:var(--bub);white-space:pre-wrap;overflow-wrap:anywhere;align-self:flex-start}
+.bub.owner{background:var(--acc);color:var(--on-acc);align-self:flex-end}
+.bub small{display:block;font-size:11px;opacity:.7;margin-top:2px}
+#draft{align-self:flex-start;font-style:italic;color:var(--mute);padding:0 11px}
+#chatform{display:flex;flex-wrap:wrap;gap:8px;padding:10px;border-top:1px solid var(--line);background:var(--card)}
+#chatform[hidden]{display:none}
+#chatform textarea{flex:1;resize:none;font:inherit;color:inherit;background:var(--bg);padding:7px 9px;border:1px solid var(--line);border-radius:8px}
+@media (max-width:760px){main{grid-template-columns:1fr;grid-template-rows:38% 1fr}#chatlist{border-right:0;border-bottom:1px solid var(--line)}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Inbox <span class="mute" id="chatsum"></span></h1>
+  <label><input type="checkbox" id="chatavail"> Available</label>
+  <label class="mute">Visit alerts
+    <select id="chatpings"><option value="all">every visitor</option><option value="returning">returning only</option><option value="off">off</option></select></label>
+  <button id="chattest" type="button">Test notification</button>
+  <span class="mute" id="chatconn"></span>
+  <span class="push"><a href="/demo">Demo page</a> · <a href="/logout">Sign out</a></span>
+</header>
+<main>
+  <div id="chatlist"><div class="mute" style="padding:12px">Loading…</div></div>
+  <div id="chatthread">
+    <div id="chathead" class="mute">Pick a conversation.</div>
+    <div id="chatmsgs"></div>
+    <form id="chatform" hidden>
+      <label id="chatmailwrap" class="mute" hidden style="display:block;width:100%"><input type="checkbox" id="chatmail"> Also email to <span id="chatmailto"></span></label>
+      <textarea id="chatin" rows="2" placeholder="Reply…" aria-label="Reply"></textarea>
+      <button type="submit">Send</button>
+    </form>
+  </div>
+</main>
+<script>
+/* The same inbox as the iPhone app (docs/chat-protocol.md). */
+(function(){
+"use strict";
+function $(id){return document.getElementById(id)}
+function el(tag,attrs,text){var e=document.createElement(tag);if(attrs)for(var k in attrs)e.setAttribute(k,attrs[k]);if(text!=null)e.textContent=String(text);return e}
+function clear(n){while(n.firstChild)n.removeChild(n.firstChild)}
+function dt(ms){return new Date(ms).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}
+var chat={convs:[],sel:null,ws:null,tries:0,seen:{},draft:{}};
+function oj(method,url,body){return fetch(url,{method:method,credentials:'same-origin',headers:body?{'content-type':'application/json'}:{},body:body?JSON.stringify(body):undefined})
+  .then(function(r){if(r.status===401){location.href='/login';throw new Error('signed out')}return r.json().then(function(j){if(!r.ok)throw new Error(j.error||r.status);return j})})}
+function convName(c){return c.name||(c.place?'Visitor from '+c.place:'Visitor '+c.vid.slice(0,6))}
+function say(t){$('chatconn').textContent=t}
+function chatList(){return oj('GET','/owner/conversations?limit=100').then(function(d){chat.convs=d.conversations||[];drawList()}).catch(function(e){say(e.message)})}
+function drawList(){var box=$('chatlist');clear(box);var un=0;
+  chat.convs.sort(function(a,b){return b.lastAt-a.lastAt});
+  chat.convs.forEach(function(c){un+=c.blocked?0:c.unread;var b=el('button',{'class':'cv'+(c.vid===chat.sel?' sel':''),type:'button'}),h=el('b');
+    h.appendChild(el('span',c.online?{'class':'onl'}:null,(c.online?'● ':'')+convName(c)));if(c.unread)h.appendChild(el('span',{'class':'un'},c.unread));b.appendChild(h);
+    b.appendChild(el('span',{'class':'last'},(c.lastFrom==='owner'?'You: ':'')+c.lastText));
+    b.appendChild(el('span',{'class':'mute'},[c.lastAt?dt(c.lastAt):'',c.visits>1?'visit '+c.visits:'',c.device].filter(Boolean).join(' · ')));
+    b.addEventListener('click',function(){openChat(c.vid)});box.appendChild(b)});
+  if(!chat.convs.length)box.appendChild(el('div',{'class':'mute',style:'padding:12px'},'No conversations yet.'));
+  $('chatsum').textContent=chat.convs.length?'· '+chat.convs.length+' conversation'+(chat.convs.length===1?'':'s')+(un?' · '+un+' unread':''):''}
+function openChat(vid){chat.sel=vid;chat.seen={};drawList();$('chatform').hidden=false;var c=chat.convs.find(function(x){return x.vid===vid});
+  var h=$('chathead');clear(h);h.className='';h.appendChild(el('b',null,c?convName(c):'New conversation'));
+  h.appendChild(el('span',{'class':'mute'},' · '+[c&&c.lead?c.lead+' inquiry':'',c&&c.company,c&&c.email,c&&c.phone,c&&c.device,c&&c.ip,c&&c.visits?'visit '+c.visits:'',c&&c.online?'on the site now':''].filter(Boolean).join(' · ')));
+  var canMail=!!(c&&c.email&&c.channel!=='email');$('chatmailwrap').hidden=!canMail;if(canMail){$('chatmailto').textContent=c.email;$('chatmail').checked=false}
+  var bl=el('button',{style:'float:right',type:'button'},c&&c.blocked?'Unblock':'Block');bl.addEventListener('click',function(){oj('POST','/owner/conversations/'+vid+'/block',{blocked:!(c&&c.blocked)}).then(chatList).then(function(){openChat(vid)})});h.appendChild(bl);
+  oj('GET','/owner/conversations/'+vid+'/messages?limit=200').then(function(d){var m=$('chatmsgs');clear(m);(d.messages||[]).forEach(addBubble);m.scrollTop=m.scrollHeight});
+  oj('POST','/owner/conversations/'+vid+'/read',{}).then(function(){if(c){c.unread=0;drawList()}}).catch(function(){});
+  $('chatin').focus()}
+function addBubble(m){if(chat.seen[m.id])return;chat.seen[m.id]=1;var d=$('draft');var b=el('div',{'class':'bub '+m.from},m.text);b.appendChild(el('small',null,dt(m.at)+(m.page?' · '+m.page:'')));$('chatmsgs').insertBefore(b,d)}
+function showDraft(vid,text){var d=$('draft');if(vid!==chat.sel)return;if(!text){if(d)d.remove();return}
+  if(!d){d=el('div',{id:'draft'});$('chatmsgs').appendChild(d)}d.textContent='typing: '+text;$('chatmsgs').scrollTop=1e9}
+$('chatform').addEventListener('submit',function(ev){ev.preventDefault();var t=$('chatin').value.trim();if(!t||!chat.sel)return;$('chatin').value='';
+  oj('POST','/owner/conversations/'+chat.sel+'/messages',{text:t,email:$('chatmail').checked&&!$('chatmailwrap').hidden}).then(function(r){addBubble(r.message);$('chatmsgs').scrollTop=1e9;chatList()}).catch(function(e){say('Not sent: '+e.message)})});
+$('chatin').addEventListener('keydown',function(ev){if(ev.key==='Enter'&&!ev.shiftKey){ev.preventDefault();$('chatform').requestSubmit()}});
+var lastTyping=0;$('chatin').addEventListener('input',function(){if(chat.ws&&chat.ws.readyState===1&&chat.sel&&Date.now()-lastTyping>2000){lastTyping=Date.now();chat.ws.send(JSON.stringify({action:'typing',vid:chat.sel}))}});
+oj('GET','/owner/settings').then(function(s){$('chatavail').checked=!!s.available;$('chatpings').value=s.visitPings}).catch(function(){});
+$('chatavail').addEventListener('change',function(){oj('PUT','/owner/settings',{available:$('chatavail').checked}).catch(function(e){say(e.message)})});
+$('chatpings').addEventListener('change',function(){oj('PUT','/owner/settings',{visitPings:$('chatpings').value}).catch(function(e){say(e.message)})});
+$('chattest').addEventListener('click',function(){oj('POST','/owner/test-push',{kind:'message'}).then(function(r){say(r.sent?'Sent to '+r.sent+' device'+(r.sent===1?'':'s'):'No phone registered yet: sign in on the iPhone app.')}).catch(function(e){say(e.message)})});
+function chatSocket(){
+  oj('POST','/owner/ticket',{}).then(function(t){var ws=new WebSocket(t.ws+'?role=owner&ticket='+encodeURIComponent(t.ticket));chat.ws=ws;
+    ws.onopen=function(){chat.tries=0;say('live')};
+    ws.onmessage=function(e){var m;try{m=JSON.parse(e.data)}catch(x){return}
+      if(m.conversation){var i=chat.convs.findIndex(function(c){return c.vid===m.conversation.vid});if(i>=0)chat.convs[i]=m.conversation;else chat.convs.push(m.conversation)}
+      if(m.type==='forgotten'){chat.convs=chat.convs.filter(function(c){return c.vid!==m.vid});if(chat.sel===m.vid){chat.sel=null;clear($('chatmsgs'));clear($('chathead'));$('chathead').appendChild(el('span',{'class':'mute'},'The visitor deleted this conversation.'));$('chatform').hidden=true}drawList();return}
+      if(m.type==='typing'){showDraft(m.vid,m.text);return}
+      if(m.type==='message'){showDraft(m.vid,'');if(m.vid===chat.sel){addBubble(m.message);$('chatmsgs').scrollTop=1e9;if(m.message.from==='visitor'&&!document.hidden)oj('POST','/owner/conversations/'+m.vid+'/read',{}).catch(function(){})}}
+      if(m.type==='visitor'&&!m.conversation)return;
+      drawList()};
+    ws.onclose=function(){chat.ws=null;say('reconnecting…');setTimeout(chatSocket,Math.min(30000,1000*Math.pow(2,chat.tries++)))}})
+  .catch(function(){setTimeout(chatSocket,30000)})}
+chatList();chatSocket();setInterval(function(){if(!chat.ws)chatList()},20000);
+})();
+</script>
+</body>
+</html>

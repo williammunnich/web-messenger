@@ -1,0 +1,81 @@
+# XcodeGen spec for the Messenger app. Generate the project with:  cd ios && xcodegen
+name: WMChat
+options:
+  bundleIdPrefix: com.example
+  deploymentTarget:
+    iOS: "18.0"
+  createIntermediateGroups: true
+  developmentLanguage: en
+configFiles:
+  Debug: Config.xcconfig
+  Release: Config.xcconfig
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    CODE_SIGN_STYLE: Automatic
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    DEAD_CODE_STRIPPING: YES
+    ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: YES
+targets:
+  WMChat:
+    type: application
+    platform: iOS
+    sources:
+      - path: WMChat
+        excludes:
+          - Info.plist
+          - WMChat.entitlements
+    preBuildScripts:
+      - name: Sync notification sounds
+        script: 'sh "${PROJECT_DIR}/scripts/sync_sounds.sh"'
+        basedOnDependencyAnalysis: false
+        inputFiles:
+          - $(PROJECT_DIR)/scripts/sync_sounds.sh
+          - $(PROJECT_DIR)/../assets-src/sounds/visit.caf
+          - $(PROJECT_DIR)/../assets-src/sounds/message.caf
+          - $(PROJECT_DIR)/../assets-src/sounds/message-long.caf
+        outputFiles:
+          - $(PROJECT_DIR)/WMChat/Resources/Sounds/visit.caf
+          - $(PROJECT_DIR)/WMChat/Resources/Sounds/message.caf
+          - $(PROJECT_DIR)/WMChat/Resources/Sounds/message-long.caf
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(APP_BUNDLE_ID)
+        PRODUCT_NAME: WMChat
+        TARGETED_DEVICE_FAMILY: "1"
+        SUPPORTS_MACCATALYST: NO
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+        SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        INFOPLIST_FILE: WMChat/Info.plist
+        CODE_SIGN_ENTITLEMENTS: WMChat/WMChat.entitlements
+    info:
+      path: WMChat/Info.plist
+      properties:
+        CFBundleDisplayName: Messenger
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true   # the local bench (localhost) is plain http
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSRequiresIPhoneOS: true
+        ITSAppUsesNonExemptEncryption: false
+        UILaunchScreen:
+          UIColorName: ""
+        UIApplicationSupportsIndirectInputEvents: true
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        CFBundleURLTypes:
+          - CFBundleURLName: $(PRODUCT_BUNDLE_IDENTIFIER)
+            CFBundleURLSchemes:
+              - wmchat
+    entitlements:
+      path: WMChat/WMChat.entitlements
+      properties:
+        aps-environment: development
+        com.apple.developer.usernotifications.time-sensitive: true

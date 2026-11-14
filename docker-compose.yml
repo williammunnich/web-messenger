@@ -1,0 +1,6 @@
+# DynamoDB Local, for `npm run dev:dynamo`. Data lasts until `npm run db:down`.
+services:
+  dynamodb:
+    image: amazon/dynamodb-local:2.5.4
+    command: -jar DynamoDBLocal.jar -sharedDb -inMemory
+    ports: ["127.0.0.1:8000:8000"]

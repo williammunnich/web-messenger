@@ -1,0 +1,22 @@
+node_modules/
+.DS_Store
+dist/
+*.log
+
+# your own deployment values and keys: never commit these
+deploy.env
+.private-patterns
+*.p8
+*.pem
+*.mobileprovision
+.env
+.env.*
+
+# iOS
+ios/Local.xcconfig
+ios/build/
+build/
+DerivedData/
+ios/*.xcodeproj/
+xcuserdata/
+*.xcuserstate

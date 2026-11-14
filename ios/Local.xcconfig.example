@@ -1,0 +1,3 @@
+// Copy to Local.xcconfig (gitignored) and fill in. Your team id is at developer.apple.com > Membership.
+DEVELOPMENT_TEAM = ABCDE12345
+APP_BUNDLE_ID = com.yourname.messenger
