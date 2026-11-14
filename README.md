@@ -38,6 +38,8 @@ Live chat for your website that rings your iPhone. Visitors write in a small bub
 | `docs/embed.md` | The embed API for sites that use the widget, and how to theme it |
 | `docs/decisions.md` | Decisions, dated |
 
+**Working with an AI agent?** [AGENTS.md](AGENTS.md) briefs it: what to run, what to ask you first, and which steps (AWS sign-in, secrets, Google and Apple consoles) only you can do.
+
 ## Try it locally
 
 You need Node 22 or later. No AWS account or Apple account is required.
