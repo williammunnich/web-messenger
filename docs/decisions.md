@@ -2,13 +2,20 @@
 
 Newest first. Each entry: date, what was decided, why, what was rejected.
 
+## 2026-11-14: Generic names everywhere (no "wm" prefix)
+
+- **Decided:** every name that began with "wm" is replaced by a generic one. Page API: `window.webMessenger` (was `wmChat`), `window.MESSENGER_CONFIG` (was `WM_CONFIG`), `window.messengerId`, `window.messengerPrivacy`, `<p id="messenger-privacy-line">`, `<link data-messenger>`. CSS: `.msgr` and `--` variables on it (was `.wmc`). Browser storage and cookies: `msgr_...` (was `wm_...`). iPhone app: folder and target `Messenger`, sign-in link scheme `webmessenger://` (was `wmchat://`).
+- **Why:** the prefix was the first author's initials, left over from before this became a general project. A stranger reading `wmChat` cannot tell what it means.
+- **Cost:** a breaking change for any page or deployment made from the first public commit: its script tags, stored visitor ids, sessions and the app's link scheme use the old names. Done now, one commit after the first release, so that nobody depends on them yet.
+- **Also fixed:** the sign-in code cut the cookie's name off by a fixed length of 5 characters, which only worked while the name was exactly `wm_o`; it now uses the name's own length.
+
 ## 2026-11-14: One neutral default theme; every colour in one block
 
-- **Decided:** the project ships with a single plain look (light and dark, a blue accent, the system font). Every colour of the widget is a CSS variable declared in one commented block at the top of `chat.css`; the rules below it and `chat.js` contain no colour. The defaults are written with `:where(.wmc)`, so a site's plain `.wmc { --accent: … }` rule wins wherever it sits in the page. The default avatar is an inline SVG coloured by `--avatar-bg` and `--avatar-fg` instead of an image with fixed colours. The inbox page keeps its colours in its `:root` block, and the iPhone app in `ios/WMChat/Support/Theme.swift`.
+- **Decided:** the project ships with a single plain look (light and dark, a blue accent, the system font). Every colour of the widget is a CSS variable declared in one commented block at the top of `chat.css`; the rules below it and `chat.js` contain no colour. The defaults are written with `:where(.msgr)`, so a site's plain `.msgr { --accent: … }` rule wins wherever it sits in the page. The default avatar is an inline SVG coloured by `--avatar-bg` and `--avatar-fg` instead of an image with fixed colours. The inbox page keeps its colours in its `:root` block, and the iPhone app in `ios/Messenger/Support/Theme.swift`.
 - **Why:** a site should be able to restyle the widget from its own stylesheet without editing or forking the widget's files, and a reader should find every colour in one place.
 - **Embed API:** the variable names that existed before (`--font`, `--accent`, `--on-accent`, `--paper`, `--plate`, `--ink`, `--quiet`, `--line`, `--line-strong`, `--bubble`, `--bubble-line`, `--field-bg`, `--field-line`) keep their names and meaning. Added: `--online`, `--offline`, `--badge`, `--on-badge`, `--avatar-bg`, `--avatar-fg`, `--shadow`. Only the default values changed.
-- **Also changed:** the `.smallprint` rule (a footer style for the page, not for the widget) moved from `chat.css` to the demo page, so the widget's stylesheet no longer styles anything outside `.wmc` except the `.linkish` buttons it creates itself.
-- **Rejected:** several bundled themes (more to maintain; a site's own five lines of CSS do the same); a JavaScript theme option in `WM_CONFIG` (CSS variables already cover it and work with a strict Content-Security-Policy).
+- **Also changed:** the `.smallprint` rule (a footer style for the page, not for the widget) moved from `chat.css` to the demo page, so the widget's stylesheet no longer styles anything outside `.msgr` except the `.linkish` buttons it creates itself.
+- **Rejected:** several bundled themes (more to maintain; a site's own five lines of CSS do the same); a JavaScript theme option in `MESSENGER_CONFIG` (CSS variables already cover it and work with a strict Content-Security-Policy).
 
 ## 2026-11-14: Hardening before the code is read by strangers
 
@@ -33,11 +40,11 @@ Newest first. Each entry: date, what was decided, why, what was rejected.
 
 ## 2026-11-11: The site's greeting wins over the inbox greeting
 
-- **Decided:** `WM_CONFIG.greeting` first, then the greeting saved in the inbox, then the default.
-- **Why:** the widget's header comment already promised "WM_CONFIG can override", but the server's greeting replaced it on connect. A site embedding the widget needs its own wording.
+- **Decided:** `MESSENGER_CONFIG.greeting` first, then the greeting saved in the inbox, then the default.
+- **Why:** the widget's header comment already promised "MESSENGER_CONFIG can override", but the server's greeting replaced it on connect. A site embedding the widget needs its own wording.
 
 ## 2026-11-11: Visitors can see and delete their data; the id goes in the body
 
-- **Decided:** `POST /visitor/data` and `POST /visitor/forget` with `{"vid"}` as JSON, CORS limited to `ALLOWED_ORIGINS`, 30 requests an hour per address, `no-store`. Exposed to sites as `window.wmChat.myData()` / `forget()`. Owners get a `forgotten` frame and drop the conversation (inbox and iPhone app). Lambda log retention cut from 365 to 90 days.
+- **Decided:** `POST /visitor/data` and `POST /visitor/forget` with `{"vid"}` as JSON, CORS limited to `ALLOWED_ORIGINS`, 30 requests an hour per address, `no-store`. Exposed to sites as `window.webMessenger.myData()` / `forget()`. Owners get a `forgotten` frame and drop the conversation (inbox and iPhone app). Lambda log retention cut from 365 to 90 days.
 - **Why:** the random visitor id is the only key the visitor holds; possession of it is the proof. A body keeps it out of API Gateway and CloudFront access logs (a query string would be logged). JSON forces a preflight, so other sites can't trigger a delete with a plain form.
 - **Rejected:** `GET`/`DELETE` with the id in the URL (logged); a sign-in for visitors (they have no account); deleting the short-lived spam counters by scanning the table (they hold no text and expire within 2 days; documented instead).

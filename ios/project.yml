@@ -1,5 +1,5 @@
 # XcodeGen spec for the Messenger app. Generate the project with:  cd ios && xcodegen
-name: WMChat
+name: Messenger
 options:
   bundleIdPrefix: com.example
   deploymentTarget:
@@ -20,14 +20,14 @@ settings:
     DEAD_CODE_STRIPPING: YES
     ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: YES
 targets:
-  WMChat:
+  Messenger:
     type: application
     platform: iOS
     sources:
-      - path: WMChat
+      - path: Messenger
         excludes:
           - Info.plist
-          - WMChat.entitlements
+          - Messenger.entitlements
     preBuildScripts:
       - name: Sync notification sounds
         script: 'sh "${PROJECT_DIR}/scripts/sync_sounds.sh"'
@@ -38,23 +38,23 @@ targets:
           - $(PROJECT_DIR)/../assets-src/sounds/message.caf
           - $(PROJECT_DIR)/../assets-src/sounds/message-long.caf
         outputFiles:
-          - $(PROJECT_DIR)/WMChat/Resources/Sounds/visit.caf
-          - $(PROJECT_DIR)/WMChat/Resources/Sounds/message.caf
-          - $(PROJECT_DIR)/WMChat/Resources/Sounds/message-long.caf
+          - $(PROJECT_DIR)/Messenger/Resources/Sounds/visit.caf
+          - $(PROJECT_DIR)/Messenger/Resources/Sounds/message.caf
+          - $(PROJECT_DIR)/Messenger/Resources/Sounds/message-long.caf
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: $(APP_BUNDLE_ID)
-        PRODUCT_NAME: WMChat
+        PRODUCT_NAME: Messenger
         TARGETED_DEVICE_FAMILY: "1"
         SUPPORTS_MACCATALYST: NO
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
         SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
-        INFOPLIST_FILE: WMChat/Info.plist
-        CODE_SIGN_ENTITLEMENTS: WMChat/WMChat.entitlements
+        INFOPLIST_FILE: Messenger/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Messenger/Messenger.entitlements
     info:
-      path: WMChat/Info.plist
+      path: Messenger/Info.plist
       properties:
         CFBundleDisplayName: Messenger
         NSAppTransportSecurity:
@@ -73,9 +73,9 @@ targets:
         CFBundleURLTypes:
           - CFBundleURLName: $(PRODUCT_BUNDLE_IDENTIFIER)
             CFBundleURLSchemes:
-              - wmchat
+              - webmessenger
     entitlements:
-      path: WMChat/WMChat.entitlements
+      path: Messenger/Messenger.entitlements
       properties:
         aps-environment: development
         com.apple.developer.usernotifications.time-sensitive: true

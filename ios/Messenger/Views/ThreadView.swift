@@ -49,7 +49,7 @@ struct ThreadView: View {
                         let previous = index > 0 ? list[index - 1] : nil
                         if previous == nil || message.at - previous!.at > 15 * 60_000 {
                             Text(Fmt.threadHeader(ms: message.at))
-                                .font(Font.wm(.caption2).weight(.medium))
+                                .font(Font.app(.caption2).weight(.medium))
                                 .foregroundStyle(.secondary)
                                 .padding(.top, 14)
                                 .padding(.bottom, 6)
@@ -63,7 +63,7 @@ struct ThreadView: View {
                         .id(message.id)
                         if message.id == readReceiptId {
                             Text("Read")
-                                .font(Font.wm(.caption2))
+                                .font(Font.app(.caption2))
                                 .foregroundStyle(.secondary)
                                 .frame(maxWidth: .infinity, alignment: .trailing)
                                 .padding(.trailing, 6)
@@ -143,11 +143,11 @@ struct ThreadView: View {
                     Circle().fill(Theme.online).frame(width: 7, height: 7)
                 }
                 Text(conversation.displayName)
-                    .font(Font.wm(.headline))
+                    .font(Font.app(.headline))
                     .lineLimit(1)
             }
             Text(subtitle)
-                .font(Font.wm(.caption2))
+                .font(Font.app(.caption2))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
         }
@@ -167,12 +167,12 @@ struct ThreadView: View {
     private var emptyState: some View {
         VStack(spacing: 6) {
             Image(systemName: "hand.wave")
-                .font(Font.wm(.largeTitle))
+                .font(Font.app(.largeTitle))
                 .foregroundStyle(.tint)
             Text("Say hi")
-                .font(Font.wm(.headline))
+                .font(Font.app(.headline))
             Text("This visitor hasn't chatted yet. Your message pops up in the site's chat bubble.")
-                .font(Font.wm(.subheadline))
+                .font(Font.app(.subheadline))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
@@ -185,7 +185,7 @@ struct ThreadView: View {
         if conversation.canEmail, let address = conversation.email {
             Toggle(isOn: Binding(get: { alsoEmailTouched ? alsoEmail : !conversation.online },
                                  set: { alsoEmail = $0; alsoEmailTouched = true })) {
-                Text("Also email them at \(address)").font(.wm(.footnote)).foregroundStyle(Theme.quiet).lineLimit(1).truncationMode(.middle)
+                Text("Also email them at \(address)").font(.app(.footnote)).foregroundStyle(Theme.quiet).lineLimit(1).truncationMode(.middle)
             }
             .toggleStyle(.checkbox)
             .padding(.horizontal, 4)
@@ -258,7 +258,7 @@ struct MessageBubble: View {
         VStack(alignment: mine ? .trailing : .leading, spacing: 2) {
             if showPage, let page = message.page {
                 Label(page, systemImage: "doc.text")
-                    .font(Font.wm(.caption2))
+                    .font(Font.app(.caption2))
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 6)
                     .padding(.top, 4)
@@ -329,9 +329,9 @@ struct DraftBubble: View {
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 3) {
-                Text("typing…").font(Font.wm(.caption2)).foregroundStyle(Theme.quiet)
+                Text("typing…").font(Font.app(.caption2)).foregroundStyle(Theme.quiet)
                 Text(text)
-                    .font(Font.wm(.body))
+                    .font(Font.app(.body))
                     .foregroundStyle(Theme.ink.opacity(0.75))
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)

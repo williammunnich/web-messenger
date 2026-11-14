@@ -2,8 +2,8 @@
  * @file chat.js
  * Live chat bubble: the widget a site embeds. Talks to the chat service over a WebSocket (docs/chat-protocol.md).
  * Embed with one tag:  <script src="https://<your-api>/widget/chat.js" defer></script>
- * The server puts its own address in WM_CHAT_DEFAULTS. window.WM_CONFIG (set before this script) can override:
- * chatWs, apiBase, ownerName, ownerPhoto, privacyUrl, greeting. Add <p id="wm-privacy-line"></p> for the opt-out line.
+ * The server puts its own address in MESSENGER_DEFAULTS. window.MESSENGER_CONFIG (set before this script) can override:
+ * chatWs, apiBase, ownerName, ownerPhoto, privacyUrl, greeting. Add <p id="messenger-privacy-line"></p> for the opt-out line.
  * The stable embed API (what a site may rely on) is docs/embed.md.
  * This file holds no colours: the whole look, including the default avatar, comes from the CSS variables at the top of
  * chat.css (docs/embed.md, "Theming").
@@ -13,16 +13,16 @@
  * @date Last edited 2026-11-14
  */
 /**
- * The whole widget, in one function so nothing but wmId, wmPrivacy and wmChat is added to the page's globals.
+ * The whole widget, in one function so nothing but messengerId, messengerPrivacy and webMessenger is added to the page's globals.
  * It works out who the visitor is, builds the bubble and panel, and keeps a WebSocket open to the chat service.
  */
 (function () {
   "use strict";
-  var DEF = window.WM_CHAT_DEFAULTS || {}, CFG = window.WM_CONFIG || {};
+  var DEF = window.MESSENGER_DEFAULTS || {}, CFG = window.MESSENGER_CONFIG || {};
   var SCRIPT = document.currentScript, BASE = SCRIPT && SCRIPT.src ? SCRIPT.src.replace(/[^/]*$/, "") : "/widget/";
   var WS = CFG.chatWs || DEF.ws;
 
-  // ---------- who this visitor is. Return visits are remembered with a random id in localStorage (wm_vid), unless the
+  // ---------- who this visitor is. Return visits are remembered with a random id in localStorage (msgr_vid), unless the
   // visitor opts out, sends Global Privacy Control, or is in the EEA/UK/Switzerland (by time zone) and hasn't said yes.
   /**
    * localStorage that never throws (private windows, blocked storage).
@@ -36,33 +36,33 @@
    * @returns {string} The id.
    */
   function rid(n) { var a = new Uint8Array(n), c = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789", o = ""; crypto.getRandomValues(a); for (var i = 0; i < n; i++) o += c[a[i] % 62]; return o; }
-  if (location.hash === "#me") { LS.s("wm_me", "1"); history.replaceState(null, "", location.pathname + location.search); }
-  if (location.hash === "#notme") { LS.s("wm_me", null); history.replaceState(null, "", location.pathname + location.search); }
+  if (location.hash === "#me") { LS.s("msgr_me", "1"); history.replaceState(null, "", location.pathname + location.search); }
+  if (location.hash === "#notme") { LS.s("msgr_me", null); history.replaceState(null, "", location.pathname + location.search); }
   var tz = ""; try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch (e) {}
   var askFirst = /^Europe\//.test(tz) || /^Atlantic\/(Reykjavik|Canary|Madeira|Azores|Faroe)$/.test(tz);
-  var said = LS.g("wm_remember") === "1";
-  var optout = LS.g("wm_optout") === "1" || (navigator.globalPrivacyControl === true && !said);
+  var said = LS.g("msgr_remember") === "1";
+  var optout = LS.g("msgr_optout") === "1" || (navigator.globalPrivacyControl === true && !said);
   var persist = !optout && (!askFirst || said), vid = null;
-  if (persist) { vid = LS.g("wm_vid"); if (!/^[A-Za-z0-9]{22}$/.test(vid || "")) { vid = rid(22); LS.s("wm_vid", vid); } }
-  else { LS.s("wm_vid", null); try { vid = sessionStorage.getItem("wm_tvid"); if (!vid) { vid = rid(22); sessionStorage.setItem("wm_tvid", vid); } } catch (e) { vid = rid(22); } }
-  var ID = window.wmId = { vid: vid, persist: persist, optout: optout, ask: askFirst && !said && !optout, me: LS.g("wm_me") === "1" };
+  if (persist) { vid = LS.g("msgr_vid"); if (!/^[A-Za-z0-9]{22}$/.test(vid || "")) { vid = rid(22); LS.s("msgr_vid", vid); } }
+  else { LS.s("msgr_vid", null); try { vid = sessionStorage.getItem("msgr_tvid"); if (!vid) { vid = rid(22); sessionStorage.setItem("msgr_tvid", vid); } } catch (e) { vid = rid(22); } }
+  var ID = window.messengerId = { vid: vid, persist: persist, optout: optout, ask: askFirst && !said && !optout, me: LS.g("msgr_me") === "1" };
   /** The visitor's privacy choices (docs/embed.md). Each one saves the choice and reloads the page. */
-  window.wmPrivacy = {
+  window.messengerPrivacy = {
     /**
      * Stops remembering this visitor and removes their stored id.
      * @returns {void}
      */
-    optOut: function () { LS.s("wm_optout", "1"); LS.s("wm_remember", null); LS.s("wm_vid", null); location.reload(); },
+    optOut: function () { LS.s("msgr_optout", "1"); LS.s("msgr_remember", null); LS.s("msgr_vid", null); location.reload(); },
     /**
      * Undoes an opt-out.
      * @returns {void}
      */
-    optIn: function () { LS.s("wm_optout", null); location.reload(); },
+    optIn: function () { LS.s("msgr_optout", null); location.reload(); },
     /**
      * Says yes to being remembered (needed where the widget asks first).
      * @returns {void}
      */
-    remember: function () { LS.s("wm_optout", null); LS.s("wm_remember", "1"); location.reload(); } };
+    remember: function () { LS.s("msgr_optout", null); LS.s("msgr_remember", "1"); location.reload(); } };
 
   // the visitor's own data (docs/embed.md): see it, or delete it. The vid goes in the POST body, never the address.
   var API = String(CFG.apiBase || DEF.api || (BASE.indexOf("http") === 0 ? new URL(BASE).origin : "")).replace(/\/$/, "");
@@ -72,7 +72,7 @@
    * @returns {Promise<Object>} The JSON answer; rejects when the address isn't known or the service answers with an error.
    */
   function visitorApi(path) {
-    if (!API || !window.fetch) return Promise.reject(new Error("The chat service address isn't known (set WM_CONFIG.apiBase)."));
+    if (!API || !window.fetch) return Promise.reject(new Error("The chat service address isn't known (set MESSENGER_CONFIG.apiBase)."));
     return fetch(API + path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ vid: ID.vid }),
                                credentials: "omit", cache: "no-store" })
       .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok) throw new Error(j.error || "HTTP " + r.status); return j; }); });
@@ -82,12 +82,12 @@
    * @returns {void}
    */
   function forgetLocally() {
-    ["wm_chat_open", "wm_chat_cache", "wm_chat_draft", "wm_chat_outbox", "wm_chat_greeted", "wm_contact", "wm_v", "wm_tvid"].forEach(function (k) {
+    ["msgr_chat_open", "msgr_chat_cache", "msgr_chat_draft", "msgr_chat_outbox", "msgr_chat_greeted", "msgr_contact", "msgr_v", "msgr_tvid"].forEach(function (k) {
       try { sessionStorage.removeItem(k); } catch (e) {} try { localStorage.removeItem(k); } catch (e) {} });
-    LS.s("wm_vid", null);                              // a fresh random id next time: nothing links back to the deleted one
+    LS.s("msgr_vid", null);                              // a fresh random id next time: nothing links back to the deleted one
   }
   /** The visitor's own data (docs/embed.md): `vid`, `apiBase`, and the two calls below. */
-  window.wmChat = { vid: ID.vid, apiBase: API,
+  window.webMessenger = { vid: ID.vid, apiBase: API,
     /**
      * Fetches everything stored under this visitor's id.
      * @returns {Promise<Object>} The stored data.
@@ -101,15 +101,15 @@
   var state = null;
 
   if (!WS || !window.WebSocket) return;
-  if (!document.querySelector('link[data-wm-chat]')) {
-    var css = document.createElement("link"); css.rel = "stylesheet"; css.href = BASE + "chat.css"; css.setAttribute("data-wm-chat", "");
+  if (!document.querySelector('link[data-messenger]')) {
+    var css = document.createElement("link"); css.rel = "stylesheet"; css.href = BASE + "chat.css"; css.setAttribute("data-messenger", "");
     document.head.appendChild(css);
   }
 
   var OWNER_NAME = CFG.ownerName || DEF.ownerName || "Support", FIRST_NAME = OWNER_NAME.split(" ")[0];
   state = { open: false, online: true, greeting: "", msgs: [], ids: {}, unread: 0, typingTimer: 0, ws: null, tries: 0,
                 readAt: 0, lastTypingSent: 0, asked: false };
-  try { state.open = sessionStorage.getItem("wm_chat_open") === "1"; } catch (e) {}
+  try { state.open = sessionStorage.getItem("msgr_chat_open") === "1"; } catch (e) {}
 
   /**
    * Creates an element.
@@ -128,52 +128,52 @@
   var ICON_X = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
   var ICON_SEND = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3.4 20.4 21 12 3.4 3.6 3.4 10l12.6 2-12.6 2z"/></svg>';
   // The default avatar. It is an inline SVG, not an image address, so that chat.css can colour it (--avatar-bg, --avatar-fg).
-  var ICON_PERSON = '<svg class="wmc-avatar" viewBox="0 0 40 40" aria-hidden="true"><rect class="wmc-avatar-bg" width="40" height="40"/><circle class="wmc-avatar-fg" cx="20" cy="15" r="7"/><path class="wmc-avatar-fg" d="M6 38c1-10 7-14 14-14s13 4 14 14z"/></svg>';
+  var ICON_PERSON = '<svg class="msgr-avatar" viewBox="0 0 40 40" aria-hidden="true"><rect class="msgr-avatar-bg" width="40" height="40"/><circle class="msgr-avatar-fg" cx="20" cy="15" r="7"/><path class="msgr-avatar-fg" d="M6 38c1-10 7-14 14-14s13 4 14 14z"/></svg>';
   /**
-   * Makes the owner's avatar: the site's photo (WM_CONFIG.ownerPhoto) when there is one, otherwise the default silhouette.
+   * Makes the owner's avatar: the site's photo (MESSENGER_CONFIG.ownerPhoto) when there is one, otherwise the default silhouette.
    * @param {number} px - Width and height in CSS pixels.
-   * @returns {Element} An `img` or an `svg` element with the class `wmc-avatar`.
+   * @returns {Element} An `img` or an `svg` element with the class `msgr-avatar`.
    */
   function avatar(px) {
-    if (CFG.ownerPhoto) return h("img", { class: "wmc-avatar", src: CFG.ownerPhoto, alt: "", width: String(px), height: String(px) });
+    if (CFG.ownerPhoto) return h("img", { class: "msgr-avatar", src: CFG.ownerPhoto, alt: "", width: String(px), height: String(px) });
     var box = document.createElement("div"); box.innerHTML = ICON_PERSON;
     var svg = box.firstChild; svg.setAttribute("width", String(px)); svg.setAttribute("height", String(px));
     return svg;
   }
 
   // ---------- DOM
-  var root = h("div", { class: "wmc", "data-open": "false" });
-  var bubble = h("button", { class: "wmc-bubble", type: "button", "aria-label": "Chat with " + FIRST_NAME, "aria-expanded": "false", "data-t": "chat-bubble" });
+  var root = h("div", { class: "msgr", "data-open": "false" });
+  var bubble = h("button", { class: "msgr-bubble", type: "button", "aria-label": "Chat with " + FIRST_NAME, "aria-expanded": "false", "data-t": "chat-bubble" });
   bubble.innerHTML = ICON_CHAT;
-  var badge = h("span", { class: "wmc-badge", hidden: "" });
+  var badge = h("span", { class: "msgr-badge", hidden: "" });
   bubble.appendChild(badge);
   // the preview bubble: a short line above the launcher when a message comes in while the chat is closed.
   // It never opens the chat by itself; a click on it does. The x dismisses it until the next message.
-  var peekOpen = h("button", { class: "wmc-peek-open", type: "button", "data-t": "chat-peek" });
-  var peekClose = h("button", { class: "wmc-peek-x", type: "button", "aria-label": "Dismiss" });
-  var peek = h("div", { class: "wmc-peek", role: "status", "aria-live": "polite", hidden: "" }, [peekOpen, peekClose]);
-  var label = h("button", { class: "wmc-label", type: "button", "data-t": "chat-label" });
+  var peekOpen = h("button", { class: "msgr-peek-open", type: "button", "data-t": "chat-peek" });
+  var peekClose = h("button", { class: "msgr-peek-x", type: "button", "aria-label": "Dismiss" });
+  var peek = h("div", { class: "msgr-peek", role: "status", "aria-live": "polite", hidden: "" }, [peekOpen, peekClose]);
+  var label = h("button", { class: "msgr-label", type: "button", "data-t": "chat-label" });
   label.textContent = "Chat with me 👋";
-  var launch = h("div", { class: "wmc-launch" }, [label, bubble]);
+  var launch = h("div", { class: "msgr-launch" }, [label, bubble]);
 
-  var status = h("p", { class: "wmc-status" });
-  var closeBtn = h("button", { class: "wmc-close", type: "button", "aria-label": "Close chat" }); closeBtn.innerHTML = ICON_X;
+  var status = h("p", { class: "msgr-status" });
+  var closeBtn = h("button", { class: "msgr-close", type: "button", "aria-label": "Close chat" }); closeBtn.innerHTML = ICON_X;
   peekClose.innerHTML = ICON_X;
-  var head = h("div", { class: "wmc-head" }, [
+  var head = h("div", { class: "msgr-head" }, [
     avatar(40),
-    h("div", { class: "wmc-who" }, [h("p", { class: "wmc-name", text: "Hi there 👋" }), status]),
+    h("div", { class: "msgr-who" }, [h("p", { class: "msgr-name", text: "Hi there 👋" }), status]),
     closeBtn]);
-  var list = h("div", { class: "wmc-list", role: "log", "aria-live": "polite", "aria-label": "Messages" });
-  var typing = h("div", { class: "wmc-typing", hidden: "" }, [h("span"), h("span"), h("span")]);
-  var nameIn = h("input", { class: "wmc-field", type: "text", placeholder: "Your name (optional)", maxlength: "80", autocomplete: "name", "aria-label": "Your name" });
-  var emailIn = h("input", { class: "wmc-field", type: "email", placeholder: "Email (optional)", maxlength: "160", autocomplete: "email", "aria-label": "Your email" });
-  var phoneIn = h("input", { class: "wmc-field", type: "tel", placeholder: "Phone (optional)", maxlength: "40", autocomplete: "tel", "aria-label": "Your phone number" });
-  var companyIn = h("input", { class: "wmc-field", type: "text", placeholder: "Company (optional)", maxlength: "120", autocomplete: "organization", "aria-label": "Your company" });
-  var leadNote = h("p", { class: "wmc-leadnote", hidden: "" });
-  var fields = h("div", { class: "wmc-fields", id: "wmc-fields" }, [nameIn, emailIn, phoneIn, companyIn]);
+  var list = h("div", { class: "msgr-list", role: "log", "aria-live": "polite", "aria-label": "Messages" });
+  var typing = h("div", { class: "msgr-typing", hidden: "" }, [h("span"), h("span"), h("span")]);
+  var nameIn = h("input", { class: "msgr-field", type: "text", placeholder: "Your name (optional)", maxlength: "80", autocomplete: "name", "aria-label": "Your name" });
+  var emailIn = h("input", { class: "msgr-field", type: "email", placeholder: "Email (optional)", maxlength: "160", autocomplete: "email", "aria-label": "Your email" });
+  var phoneIn = h("input", { class: "msgr-field", type: "tel", placeholder: "Phone (optional)", maxlength: "40", autocomplete: "tel", "aria-label": "Your phone number" });
+  var companyIn = h("input", { class: "msgr-field", type: "text", placeholder: "Company (optional)", maxlength: "120", autocomplete: "organization", "aria-label": "Your company" });
+  var leadNote = h("p", { class: "msgr-leadnote", hidden: "" });
+  var fields = h("div", { class: "msgr-fields", id: "msgr-fields" }, [nameIn, emailIn, phoneIn, companyIn]);
   // a plain chat keeps the details folded away under one small line; a service inquiry opens them (and requires them)
-  var moreBtn = h("button", { class: "wmc-more", type: "button", "aria-expanded": "false", "aria-controls": "wmc-fields" });
-  var who = h("div", { class: "wmc-whois", hidden: "" }, [leadNote, moreBtn, fields]);
+  var moreBtn = h("button", { class: "msgr-more", type: "button", "aria-expanded": "false", "aria-controls": "msgr-fields" });
+  var who = h("div", { class: "msgr-whois", hidden: "" }, [leadNote, moreBtn, fields]);
   var detailsOpen = false;
   /**
    * Shows or folds the contact fields and updates the line that toggles them. An inquiry always shows them.
@@ -189,25 +189,25 @@
   moreBtn.addEventListener("click", function () { detailsOpen = !detailsOpen; renderDetails(); if (detailsOpen) nameIn.focus(); });
   phoneIn.hidden = companyIn.hidden = false;           // always offered; required only for service inquiries
   // contact details are remembered in this browser (or only this tab, if the visitor opted out of being remembered)
-  var CONTACT_KEY = "wm_contact", contactStore = ID.persist ? window.localStorage : window.sessionStorage;
+  var CONTACT_KEY = "msgr_contact", contactStore = ID.persist ? window.localStorage : window.sessionStorage;
   try { var saved = JSON.parse(contactStore.getItem(CONTACT_KEY) || "null");
     if (saved) { nameIn.value = saved.name || ""; emailIn.value = saved.email || ""; phoneIn.value = saved.phone || ""; companyIn.value = saved.company || ""; } } catch (e) {}
-  var input = h("textarea", { class: "wmc-input", rows: "1", placeholder: "Write a message…", maxlength: "2000", "aria-label": "Message" });
-  var send = h("button", { class: "wmc-send", type: "submit", "aria-label": "Send" }); send.innerHTML = ICON_SEND;
-  var form = h("form", { class: "wmc-form" }, [who, h("div", { class: "wmc-row" }, [input, send])]);
-  var note = h("p", { class: "wmc-note" });
-  var panel = h("section", { class: "wmc-panel", role: "dialog", "aria-label": "Chat with " + FIRST_NAME, hidden: "" }, [head, list, typing, form, note]);
+  var input = h("textarea", { class: "msgr-input", rows: "1", placeholder: "Write a message…", maxlength: "2000", "aria-label": "Message" });
+  var send = h("button", { class: "msgr-send", type: "submit", "aria-label": "Send" }); send.innerHTML = ICON_SEND;
+  var form = h("form", { class: "msgr-form" }, [who, h("div", { class: "msgr-row" }, [input, send])]);
+  var note = h("p", { class: "msgr-note" });
+  var panel = h("section", { class: "msgr-panel", role: "dialog", "aria-label": "Chat with " + FIRST_NAME, hidden: "" }, [head, list, typing, form, note]);
   root.appendChild(panel); root.appendChild(peek); root.appendChild(launch);
   document.body.appendChild(root);
 
   note.textContent = (ID.persist ? "This chat is saved so you can come back to it. " : "This chat lasts until you close the tab. ") + FIRST_NAME + " sees your message as you type. ";
   if (CFG.privacyUrl) note.appendChild(h("a", { href: CFG.privacyUrl, text: "Privacy" }));
   /**
-   * Fills the site's `#wm-privacy-line` element, if there is one, with the opt-out line and its buttons.
+   * Fills the site's `#messenger-privacy-line` element, if there is one, with the opt-out line and its buttons.
    * @returns {void}
    */
   function privacyLine() {
-    var el = document.getElementById("wm-privacy-line"); if (!el) return; el.textContent = "";
+    var el = document.getElementById("messenger-privacy-line"); if (!el) return; el.textContent = "";
     /**
      * Makes a link-like button.
      * @param {string} t - The button text.
@@ -221,9 +221,9 @@
      * @returns {void}
      */
     function t(s) { el.appendChild(document.createTextNode(s)); }
-    if (ID.optout) { t("You opted out: this site doesn't remember you. "); el.appendChild(a("Undo", wmPrivacy.optIn)); }
-    else if (ID.ask) { t("This site can remember your return visits so I can say hi. "); el.appendChild(a("Remember me", wmPrivacy.remember)); t(" · "); el.appendChild(a("Opt out", wmPrivacy.optOut)); }
-    else { t("This site remembers return visits so I can say hi. "); el.appendChild(a("Opt out", wmPrivacy.optOut)); }
+    if (ID.optout) { t("You opted out: this site doesn't remember you. "); el.appendChild(a("Undo", messengerPrivacy.optIn)); }
+    else if (ID.ask) { t("This site can remember your return visits so I can say hi. "); el.appendChild(a("Remember me", messengerPrivacy.remember)); t(" · "); el.appendChild(a("Opt out", messengerPrivacy.optOut)); }
+    else { t("This site remembers return visits so I can say hi. "); el.appendChild(a("Opt out", messengerPrivacy.optOut)); }
     if (CFG.privacyUrl) { t(" · "); el.appendChild(h("a", { href: CFG.privacyUrl, text: "Privacy" })); }
     if (ID.me) t(" · this browser is marked as the owner's (visits aren't announced)");
   }
@@ -260,8 +260,8 @@
     if (m.id && state.ids[m.id]) return false;
     if (m.id) state.ids[m.id] = 1;
     state.msgs.push(m);
-    var row = h("div", { class: "wmc-msg wmc-" + (m.from === "owner" ? "them" : "me") + (m.pending ? " wmc-pending" : "") }, [
-      h("p", { class: "wmc-text", text: m.text }),
+    var row = h("div", { class: "msgr-msg msgr-" + (m.from === "owner" ? "them" : "me") + (m.pending ? " msgr-pending" : "") }, [
+      h("p", { class: "msgr-text", text: m.text }),
       h("time", { text: m.at ? fmtTime(m.at) : "" })]);
     list.appendChild(row);
     list.scrollTop = list.scrollHeight;
@@ -285,7 +285,7 @@
     list.textContent = ""; state.ids = {};
     var msgs = state.msgs; state.msgs = [];
     if (state.greeting) {
-      list.appendChild(h("div", { class: "wmc-msg wmc-them wmc-greet" }, [h("p", { class: "wmc-text", text: state.greeting })]));
+      list.appendChild(h("div", { class: "msgr-msg msgr-them msgr-greet" }, [h("p", { class: "msgr-text", text: state.greeting })]));
     }
     msgs.forEach(function (m) { addMsg(m, true); });
   }
@@ -316,9 +316,9 @@
     if (state.open) return;
     peekOpen.textContent = "";
     peekOpen.appendChild(avatar(28));
-    peekOpen.appendChild(h("span", { class: "wmc-peek-body" }, [
-      h("span", { class: "wmc-peek-name", text: fromOwner ? FIRST_NAME : OWNER_NAME }),
-      h("span", { class: "wmc-peek-text", text: preview(text) })]));
+    peekOpen.appendChild(h("span", { class: "msgr-peek-body" }, [
+      h("span", { class: "msgr-peek-name", text: fromOwner ? FIRST_NAME : OWNER_NAME }),
+      h("span", { class: "msgr-peek-text", text: preview(text) })]));
     peekOpen.setAttribute("aria-label", (fromOwner ? "New message from " + FIRST_NAME + ": " : "") + preview(text) + " (open the chat)");
     peek.hidden = false;
   }
@@ -343,7 +343,7 @@
    */
   function setOpen(open, opts) {
     state.open = open;
-    try { sessionStorage.setItem("wm_chat_open", open ? "1" : "0"); } catch (e) {}
+    try { sessionStorage.setItem("msgr_chat_open", open ? "1" : "0"); } catch (e) {}
     panel.hidden = !open; root.setAttribute("data-open", open ? "true" : "false");
     bubble.innerHTML = open ? ICON_X : ICON_CHAT; bubble.appendChild(badge); label.hidden = open;
     bubble.setAttribute("aria-expanded", open ? "true" : "false");
@@ -409,7 +409,7 @@
     if (state.lead) {
       var bad = !nameIn.value.trim() ? nameIn : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailIn.value.trim()) ? emailIn
         : (phoneIn.value.replace(/\D/g, "").length < 7) ? phoneIn : null;
-      if (bad) { detailsOpen = true; renderDetails(); bad.focus(); bad.classList.add("wmc-bad"); flash("Please add your name, email and phone so I can reach you."); return; }
+      if (bad) { detailsOpen = true; renderDetails(); bad.focus(); bad.classList.add("msgr-bad"); flash("Please add your name, email and phone so I can reach you."); return; }
       f.phone = phoneIn.value.trim(); f.company = companyIn.value.trim(); f.lead = state.lead;
     }
     if (nameIn.value.trim()) f.name = nameIn.value.trim();
@@ -444,8 +444,8 @@
     leadNote.textContent = lead ? "About " + (lead === "Project" ? "your project" : lead.toLowerCase()) + ": how can I reach you?" : "";
     renderStatus();
   }
-  [nameIn, emailIn, phoneIn].forEach(function (el) { el.addEventListener("input", function () { el.classList.remove("wmc-bad"); }); });
-  var OUTBOX = "wm_chat_outbox", outbox = [];
+  [nameIn, emailIn, phoneIn].forEach(function (el) { el.addEventListener("input", function () { el.classList.remove("msgr-bad"); }); });
+  var OUTBOX = "msgr_chat_outbox", outbox = [];
   try { outbox = JSON.parse(sessionStorage.getItem(OUTBOX) || "[]") || []; } catch (e) { outbox = []; }
   /**
    * Saves the unsent messages for this tab.
@@ -459,10 +459,10 @@
   function flushOutbox() {
     while (outbox.length && sendFrame(outbox[0])) outbox.shift();
     saveOutbox();
-    list.querySelectorAll(".wmc-pending").forEach(function (el) { if (!outbox.length) el.remove(); });
+    list.querySelectorAll(".msgr-pending").forEach(function (el) { if (!outbox.length) el.remove(); });
   }
   // one continuous chat across pages: history, draft and the inquiry form carry over (this tab; history also comes from the server)
-  var CACHE = "wm_chat_cache", DRAFT = "wm_chat_draft";
+  var CACHE = "msgr_chat_cache", DRAFT = "msgr_chat_draft";
   /**
    * Saves the last 100 messages for this tab, so the chat is there at once on the next page.
    * @returns {void}
@@ -481,7 +481,7 @@
    * @returns {void}
    */
   function flash(t) {
-    var el = h("p", { class: "wmc-error", text: t });
+    var el = h("p", { class: "msgr-error", text: t });
     list.appendChild(el); list.scrollTop = list.scrollHeight;
     setTimeout(function () { el.remove(); }, 4000);
   }
@@ -562,7 +562,7 @@
    * @returns {string} The session id; the visitor id when sessionStorage is unavailable.
    */
   function sid() {
-    try { var s = sessionStorage.getItem("wm_v"); if (!s) { s = rid(32); sessionStorage.setItem("wm_v", s); } return s; } catch (e) {}
+    try { var s = sessionStorage.getItem("msgr_v"); if (!s) { s = rid(32); sessionStorage.setItem("msgr_v", s); } return s; } catch (e) {}
     return ID.vid;
   }
   document.addEventListener("visibilitychange", function () {
@@ -582,10 +582,10 @@
   renderAll();
   setTimeout(connect, 600);
   // a few seconds into a first visit this session, a one-line hello pops up with a badge
-  var greeted = false; try { greeted = sessionStorage.getItem("wm_chat_greeted") === "1"; } catch (e) {}
+  var greeted = false; try { greeted = sessionStorage.getItem("msgr_chat_greeted") === "1"; } catch (e) {}
   if (!greeted && !state.open) setTimeout(function () {
     if (state.open || state.msgs.length) return;
-    try { sessionStorage.setItem("wm_chat_greeted", "1"); } catch (e) {}
+    try { sessionStorage.setItem("msgr_chat_greeted", "1"); } catch (e) {}
     state.unread = Math.max(state.unread, 1); renderBadge(); showPeek(state.greeting, false); label.hidden = true;
   }, 4000);
 })();

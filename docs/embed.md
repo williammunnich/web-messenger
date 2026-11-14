@@ -18,7 +18,7 @@ A site that isn't listed gets its chat socket refused (403) and its `/visitor/*`
 
 ```html
 <script>
-  window.WM_CONFIG = {                       // optional, set before the script tag
+  window.MESSENGER_CONFIG = {                       // optional, set before the script tag
     ownerName: "Your Name",                  // shown in the header and the preview bubble
     ownerPhoto: "https://example.com/you.jpg",
     greeting: "Hi! How can I help?",         // wins over the greeting set in the inbox
@@ -30,33 +30,33 @@ A site that isn't listed gets its chat socket refused (403) and its `/visitor/*`
 <script src="https://YOUR-API/widget/chat.js" defer></script>
 ```
 
-The script loads its own stylesheet (`chat.css`, next to it) unless the page already has a `<link data-wm-chat>`.
+The script loads its own stylesheet (`chat.css`, next to it) unless the page already has a `<link data-messenger>`.
 
-### WM_CONFIG keys
+### MESSENGER_CONFIG keys
 
 | Key | Default | Meaning |
 |---|---|---|
 | `ownerName` | the server's `OWNER_NAME` | Name in the chat header and preview bubble |
 | `ownerPhoto` | a plain silhouette, coloured by `--avatar-bg` and `--avatar-fg` | Avatar in the header and preview bubble |
-| `greeting` | the inbox setting, else "Hi! Ask me anything." | First line in the chat. **Precedence: `WM_CONFIG.greeting`, then the greeting saved in the inbox, then the default.** |
+| `greeting` | the inbox setting, else "Hi! Ask me anything." | First line in the chat. **Precedence: `MESSENGER_CONFIG.greeting`, then the greeting saved in the inbox, then the default.** |
 | `privacyUrl` | none | Link to your privacy page |
 | `chatWs` | the server's own WebSocket address | Chat socket |
 | `apiBase` | the origin the script was loaded from | Where `/visitor/data` and `/visitor/forget` are called |
 
 ## 3. Theming
 
-The widget ships with one plain default look: light and dark, a blue accent, the system font. Every colour and the font are CSS variables on `.wmc`, all declared in one block at the top of `chat.css`. To restyle the widget, set them on `.wmc` anywhere in your own page's CSS. The order doesn't matter: the widget's defaults are written with `:where(.wmc)`, which always loses to a plain `.wmc` rule.
+The widget ships with one plain default look: light and dark, a blue accent, the system font. Every colour and the font are CSS variables on `.msgr`, all declared in one block at the top of `chat.css`. To restyle the widget, set them on `.msgr` anywhere in your own page's CSS. The order doesn't matter: the widget's defaults are written with `:where(.msgr)`, which always loses to a plain `.msgr` rule.
 
 ```html
 <style>
-  .wmc {
+  .msgr {
     --accent: #0f766e;  --on-accent: #ffffff;
     --paper: #fffdf8;   --plate: #f4efe6;
     --ink: #1c1917;     --quiet: #6b645c;
     --font: Georgia, "Times New Roman", serif;
   }
   @media (prefers-color-scheme: dark) {
-    .wmc { --accent: #2dd4bf; --on-accent: #042f2e; --paper: #1c1917; --plate: #141210; --ink: #f1ece4; --quiet: #a8a29a; }
+    .msgr { --accent: #2dd4bf; --on-accent: #042f2e; --paper: #1c1917; --plate: #141210; --ink: #f1ece4; --quiet: #a8a29a; }
   }
 </style>
 ```
@@ -94,20 +94,20 @@ The widget ships with one plain default look: light and dark, a blue accent, the
 | `data-chat-open` on any element | Clicking it opens the chat |
 | `data-chat-prefill="text"` | …with this text in the message box |
 | `data-lead="Project"` | …as an inquiry that asks for name, email and phone |
-| `<p id="wm-privacy-line"></p>` | Filled with the opt-out / remember-me line |
+| `<p id="messenger-privacy-line"></p>` | Filled with the opt-out / remember-me line |
 | `yoursite/#me`, `#notme` | Marks this browser as the owner's (not announced) or undoes it |
 
 ## 6. JavaScript API
 
 | Global | Shape |
 |---|---|
-| `window.wmId` | `{ vid, persist, optout, ask, me }`. `vid` is the random visitor id (22 letters and digits). `persist` is false when the visitor opted out, sent Global Privacy Control, or is in an ask-first time zone and hasn't said yes; the id then lasts only for the tab. |
-| `window.wmPrivacy` | `optOut()`, `optIn()`, `remember()`. Each reloads the page. |
-| `window.wmChat` | `{ vid, apiBase, myData(), forget() }` (below) |
+| `window.messengerId` | `{ vid, persist, optout, ask, me }`. `vid` is the random visitor id (22 letters and digits). `persist` is false when the visitor opted out, sent Global Privacy Control, or is in an ask-first time zone and hasn't said yes; the id then lasts only for the tab. |
+| `window.messengerPrivacy` | `optOut()`, `optIn()`, `remember()`. Each reloads the page. |
+| `window.webMessenger` | `{ vid, apiBase, myData(), forget() }` (below) |
 
-### window.wmChat
+### window.webMessenger
 
-- `wmChat.myData()` → `Promise<Data>`, rejects with an `Error` on failure. `Data`:
+- `webMessenger.myData()` → `Promise<Data>`, rejects with an `Error` on failure. `Data`:
 
   ```js
   {
@@ -121,7 +121,7 @@ The widget ships with one plain default look: light and dark, a blue accent, the
   }
   ```
 
-- `wmChat.forget()` → `Promise<{ ok: true, deleted: n }>`, rejects with an `Error` on failure. It deletes everything the chat service stores under the id (see [chat-protocol.md](chat-protocol.md#the-visitors-own-data-http-no-sign-in)), closes the chat socket, and clears the widget's own browser storage (`wm_chat_*`, saved contact details and the `wm_vid` id, so the next page load starts with a fresh id). Reload the page afterwards.
+- `webMessenger.forget()` → `Promise<{ ok: true, deleted: n }>`, rejects with an `Error` on failure. It deletes everything the chat service stores under the id (see [chat-protocol.md](chat-protocol.md#the-visitors-own-data-http-no-sign-in)), closes the chat socket, and clears the widget's own browser storage (`msgr_chat_*`, saved contact details and the `msgr_vid` id, so the next page load starts with a fresh id). Reload the page afterwards.
 
 Both send the id in a JSON POST body to `apiBase + "/visitor/data"` / `"/visitor/forget"`, never in the URL. If your page has a Content Security Policy, allow `apiBase` in `connect-src`.
 
@@ -129,5 +129,5 @@ Both send the id in a JSON POST body to `apiBase + "/visitor/data"` / `"/visitor
 
 | Date | Change |
 |---|---|
-| 2026-11-11 | First written down. Added the preview bubble (replacing auto-open), greeting precedence, `apiBase`, `window.wmChat`. |
+| 2026-11-11 | First written down. Added the preview bubble (replacing auto-open), greeting precedence, `apiBase`, `window.webMessenger`. |
 | 2026-11-14 | New neutral default colours (names unchanged). Added the variables `--online`, `--offline`, `--badge`, `--on-badge`, `--avatar-bg`, `--avatar-fg`, `--shadow`. The default avatar follows the theme. |

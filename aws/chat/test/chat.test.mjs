@@ -106,8 +106,8 @@ print(payload+"."+hmac.new(b"${KEY}",payload.encode(),hashlib.sha256).hexdigest(
   assert.equal(sign({ e: OWNER, exp: 4102444800, k: 'app' }, KEY), fromPy, 'Node signs exactly like Python');
   assert.equal(verify(fromPy.slice(0, -1) + '0', KEY), null);
   assert.equal(verify(sign({ e: OWNER, exp: 1 }, KEY), KEY), null, 'expired');
-  assert.equal(ownerFrom({ cookies: ['wm_s=' + sign({ e: OWNER, exp: 4102444800 }, KEY)] }, KEY, OWNER).e, OWNER);
-  assert.equal(ownerFrom({ cookies: ['wm_s=' + sign({ e: 'x@example.com', exp: 4102444800 }, KEY)] }, KEY, OWNER), null, 'other email');
+  assert.equal(ownerFrom({ cookies: ['msgr_s=' + sign({ e: OWNER, exp: 4102444800 }, KEY)] }, KEY, OWNER).e, OWNER);
+  assert.equal(ownerFrom({ cookies: ['msgr_s=' + sign({ e: 'x@example.com', exp: 4102444800 }, KEY)] }, KEY, OWNER), null, 'other email');
   assert.equal(ownerFrom({ ticket: sign({ e: OWNER, exp: 4102444800 }, KEY) }, KEY, OWNER), null, 'a web session is not a ticket');
 });
 
@@ -169,7 +169,7 @@ test('owner over WebSocket: send, typing, read; and "say hi" to someone who neve
 test('auth: no token 401; forged 401; cookie POST needs JSON; never 404', async () => {
   assert.equal((await svc.http({ method: 'GET', path: '/owner/conversations', headers: {} })).status, 401);
   assert.equal((await http('GET', '/owner/conversations', null, { authorization: 'Bearer ' + sign({ e: OWNER, exp: clock / 1000 + 60 }, 'wrong') })).status, 401);
-  const cookie = 'wm_s=' + sign({ e: OWNER, exp: clock / 1000 + 60 }, KEY);
+  const cookie = 'msgr_s=' + sign({ e: OWNER, exp: clock / 1000 + 60 }, KEY);
   assert.equal((await svc.http({ method: 'GET', path: '/owner/settings', headers: { cookie } })).status, 200);
   assert.equal((await svc.http({ method: 'PUT', path: '/owner/settings', headers: { cookie, 'content-type': 'text/plain' }, body: '{"available":false}' })).status, 415);
   assert.equal((await svc.http({ method: 'PUT', path: '/owner/settings', headers: { cookie, 'content-type': 'application/json' }, body: '{"available":false}' })).status, 200);
@@ -428,7 +428,7 @@ test('DynamoDB requests only name the attributes their expressions use (DynamoDB
   const sent = [];
   const cmd = name => class { constructor(input) { this.input = input; this.name = name; } };
   const db = { send: async c => { sent.push(c); return { Items: [], Item: null, Attributes: {} }; } };
-  const store = await createDynamoStore('wm-chat', { db, GetCommand: cmd('Get'), PutCommand: cmd('Put'), DeleteCommand: cmd('Delete'), QueryCommand: cmd('Query'), UpdateCommand: cmd('Update') });
+  const store = await createDynamoStore('messenger-chat', { db, GetCommand: cmd('Get'), PutCommand: cmd('Put'), DeleteCommand: cmd('Delete'), QueryCommand: cmd('Query'), UpdateCommand: cmd('Update') });
   const used = c => {
     const i = c.input, exprs = [i.KeyConditionExpression, i.UpdateExpression, i.ConditionExpression, i.FilterExpression, i.ProjectionExpression].filter(Boolean).join(' ');
     for (const k of Object.keys(i.ExpressionAttributeNames || {})) assert.ok(exprs.includes(k), `${c.name}: ${k} unused in "${exprs}"`);
@@ -533,7 +533,7 @@ test('an email conversation cannot be opened as a visitor: its id comes from the
 });
 
 test('JSON means JSON: a content type that only mentions application/json is refused', async () => {
-  const cookie = 'wm_s=' + sign({ e: OWNER, exp: clock / 1000 + 60 }, KEY);
+  const cookie = 'msgr_s=' + sign({ e: OWNER, exp: clock / 1000 + 60 }, KEY);
   // a cross-site form can send these without a preflight, so they must not count as JSON
   for (const type of ['text/plain; application/json', 'text/plain;charset=application/json', 'application/jsonx', 'multipart/form-data; boundary=application/json']) {
     assert.equal((await svc.http({ method: 'PUT', path: '/owner/settings', headers: { cookie, 'content-type': type }, body: '{"available":false}' })).status, 415, type);

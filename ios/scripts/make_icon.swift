@@ -3,7 +3,7 @@
  * Draws the 1024 px app icon: a plain white speech bubble on the default theme's blue.
  * It is a generic placeholder; replace it with your own artwork, or change the two colours below.
  * iOS rounds the corners itself, so the square is filled edge to edge (no transparency allowed).
- * Run from ios/:  swift scripts/make_icon.swift WMChat/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png
+ * Run from ios/:  swift scripts/make_icon.swift Messenger/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png
  *
  * @project web-messenger
  * @author Claude (Anthropic), written for and prompted by William Munnich

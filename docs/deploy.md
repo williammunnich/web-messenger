@@ -91,7 +91,7 @@ The long `amazonaws.com` addresses work, but you can use your own:
 - [ ] Reminders arrive about a minute after an unanswered message
 - [ ] The app receives a test notification
 
-To run the end-to-end test against the deployed stack, sign in to the inbox and copy the `wm_s` cookie from your browser's developer tools. It leaves one blocked test conversation behind.
+To run the end-to-end test against the deployed stack, sign in to the inbox and copy the `msgr_s` cookie from your browser's developer tools. It leaves one blocked test conversation behind.
 
 ```sh
 SMOKE_BASE=https://YOUR-API SMOKE_ORIGIN=https://YOUR-SITE SMOKE_TOKEN=<cookie value> npm run smoke

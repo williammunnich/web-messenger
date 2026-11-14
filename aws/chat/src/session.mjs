@@ -5,7 +5,7 @@
  *
  * @project web-messenger
  * @author Claude (Anthropic), written for and prompted by William Munnich
- * @date Last edited 2026-11-12
+ * @date Last edited 2026-11-14
  */
 import crypto from 'node:crypto';
 
@@ -54,7 +54,7 @@ export function verify(value, key, now = Date.now()) {
 }
 
 /**
- * Finds the owner's session in a request: from a ticket, a Bearer header or a wm_s cookie, in that order.
+ * Finds the owner's session in a request: from a ticket, a Bearer header or a msgr_s cookie, in that order.
  * Only a session of kind `ws` is accepted as a ticket.
  * @param {Object} req - Where to look.
  * @param {Object} [req.headers] - Request headers.
@@ -76,7 +76,7 @@ export function ownerFrom({ headers = {}, cookies = [], ticket }, key, allowedEm
   const jar = [...cookies, ...String(headers.cookie || '').split(';')];
   for (const c of jar) {
     const [k, ...v] = c.trim().split('=');
-    if (k === 'wm_s') return ok(verify(v.join('='), key, now));
+    if (k === 'msgr_s') return ok(verify(v.join('='), key, now));
   }
   return null;
 }

@@ -9,7 +9,7 @@
  *
  * @project web-messenger
  * @author Claude (Anthropic), written for and prompted by William Munnich
- * @date Last edited 2026-11-12
+ * @date Last edited 2026-11-14
  */
 import http from 'node:http';
 import crypto from 'node:crypto';
@@ -56,7 +56,7 @@ await svc.http({ method: 'POST', path: '/owner/devices', headers: { authorizatio
 
 /** Stand-in for sign-in: the bench is always signed in, and Google isn't involved. */
 const auth = { signedIn: async () => true, handle: async r => {
-  if (r.path === '/app/login') return { status: 302, headers: { location: 'wmchat://auth?' + new URLSearchParams({ token: TOKEN, state: r.query.state || '' }) }, body: '' };
+  if (r.path === '/app/login') return { status: 302, headers: { location: 'webmessenger://auth?' + new URLSearchParams({ token: TOKEN, state: r.query.state || '' }) }, body: '' };
   if (r.path === '/login' || r.path === '/logout') return { status: 302, headers: { location: '/' }, body: '' };
   return null;
 } };

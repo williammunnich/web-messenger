@@ -1,5 +1,5 @@
 /**
- * @file WMChatApp.swift
+ * @file MessengerApp.swift
  * The app's entry point and its top-level views: the root that picks setup or the main UI, and the
  * tab bar with Chats and Settings.
  *
@@ -12,7 +12,7 @@ import SwiftUI
 
 /** The app: one window showing RootView, with AppModel in the environment and told about scene phase changes. */
 @main
-struct WMChatApp: App {
+struct MessengerApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var model = AppModel.shared
     @Environment(\.scenePhase) private var scenePhase
@@ -44,7 +44,7 @@ struct RootView: View {
                 SetupView()
             }
         }
-        .font(.wm(.body))
+        .font(.app(.body))
         .tint(Theme.accent)
         .background(Theme.paper.ignoresSafeArea())
         .onAppear { Theme.applyAppearance() }

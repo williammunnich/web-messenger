@@ -6,7 +6,7 @@
  *
  * @project web-messenger
  * @author Claude (Anthropic), written for and prompted by William Munnich
- * @date Last edited 2026-11-12
+ * @date Last edited 2026-11-14
  */
 
 import SwiftUI
@@ -241,10 +241,10 @@ final class AppModel {
         if UserDefaults.standard.bool(forKey: "screenshotNoPrompt") { return }
         #endif
         let granted = await NotificationSetup.requestAuthorizationAndRegister()
-        if !granted { pushStatus = String(localized: "Notifications are off for WM Chat in Settings") }
+        if !granted { pushStatus = String(localized: "Notifications are off for Messenger in Settings") }
         let ns = await UNUserNotificationCenter.current().notificationSettings()
         // 0 notSupported, 1 disabled, 2 enabled; read over the cable with `devicectl … --console`
-        print("WMDIAG auth=\(ns.authorizationStatus.rawValue) sound=\(ns.soundSetting.rawValue) alert=\(ns.alertSetting.rawValue) lock=\(ns.lockScreenSetting.rawValue) banner=\(ns.alertStyle.rawValue) timeSensitive=\(ns.timeSensitiveSetting.rawValue) critical=\(ns.criticalAlertSetting.rawValue) summary=\(ns.scheduledDeliverySetting.rawValue) announce=\(ns.announcementSetting.rawValue)")
+        print("DIAG auth=\(ns.authorizationStatus.rawValue) sound=\(ns.soundSetting.rawValue) alert=\(ns.alertSetting.rawValue) lock=\(ns.lockScreenSetting.rawValue) banner=\(ns.alertStyle.rawValue) timeSensitive=\(ns.timeSensitiveSetting.rawValue) critical=\(ns.criticalAlertSetting.rawValue) summary=\(ns.scheduledDeliverySetting.rawValue) announce=\(ns.announcementSetting.rawValue)")
     }
 
     /**

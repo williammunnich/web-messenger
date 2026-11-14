@@ -5,7 +5,7 @@
  *
  * @project web-messenger
  * @author Claude (Anthropic), written for and prompted by William Munnich
- * @date Last edited 2026-11-12
+ * @date Last edited 2026-11-14
  */
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
@@ -60,12 +60,12 @@ const cookieOf = (r, name) => r.cookies.find(c => c.startsWith(name + '='))?.spl
  * Starts a sign-in and expects the redirect to Google.
  * @param {string} [path='/login'] - `/login` or `/app/login`.
  * @param {Object} [query] - Query parameters.
- * @returns {Promise<{url: URL, cookie: string}>} Where Google was asked to go, and the wm_o state cookie.
+ * @returns {Promise<{url: URL, cookie: string}>} Where Google was asked to go, and the msgr_o state cookie.
  */
 async function startLogin(path = '/login', query = {}) {
   const r = await http('GET', path, { query });
   assert.equal(r.statusCode, 302);
-  return { url: new URL(r.headers.location), cookie: cookieOf(r, 'wm_o') };
+  return { url: new URL(r.headers.location), cookie: cookieOf(r, 'msgr_o') };
 }
 /**
  * Builds ID token claims that pass every check.
@@ -92,17 +92,17 @@ test('web sign-in: PKCE to Google, then a session cookie for the allowed account
   assert.equal(s.url.searchParams.get('code_challenge_method'), 'S256');
   const r = await finish(s);
   assert.equal(r.statusCode, 302); assert.equal(r.headers.location, '/');
-  const sess = verify(cookieOf(r, 'wm_s').slice(5), KEY, clock);
+  const sess = verify(cookieOf(r, 'msgr_s').slice('msgr_s='.length), KEY, clock);
   assert.equal(sess.e, OWNER); assert.equal(sess.k, 'web');
-  assert.match(r.cookies.find(c => c.startsWith('wm_s=')), /HttpOnly; SameSite=Lax/);
-  assert.match(r.cookies.find(c => c.startsWith('wm_s=')), /Secure/);
+  assert.match(r.cookies.find(c => c.startsWith('msgr_s=')), /HttpOnly; SameSite=Lax/);
+  assert.match(r.cookies.find(c => c.startsWith('msgr_s=')), /Secure/);
 });
 
 test('app sign-in ends at the app scheme with the same state, and that token works on the owner API', async () => {
   const state = 'a'.repeat(32);
   const r = await finish(await startLogin('/app/login', { state }));
   const to = new URL(r.headers.location);
-  assert.equal(to.protocol, 'wmchat:'); assert.equal(to.searchParams.get('state'), state);
+  assert.equal(to.protocol, 'webmessenger:'); assert.equal(to.searchParams.get('state'), state);
   const ok = await http('GET', '/owner/settings', { headers: { authorization: 'Bearer ' + to.searchParams.get('token') } });
   assert.equal(ok.statusCode, 200);
   assert.equal((await http('GET', '/app/login', { query: { state: 'short' } })).statusCode, 400);
@@ -123,14 +123,14 @@ test('sign-in is refused: other account, unverified email, wrong audience, wrong
 test('pages: inbox needs sign-in; widget and demo are public; the widget knows its socket; unknown paths 404', async () => {
   const out = await http('GET', '/');
   assert.equal(out.statusCode, 302); assert.equal(out.headers.location, '/login');
-  const cookie = 'wm_s=' + sign({ e: OWNER, k: 'web', exp: clock / 1000 + 60 }, KEY);
+  const cookie = 'msgr_s=' + sign({ e: OWNER, k: 'web', exp: clock / 1000 + 60 }, KEY);
   const inbox = await route({ svc, auth, web: createWeb({ auth: { signedIn: async () => true }, wsUrl: 'wss://chat.example.com/prod' }) },
     { rawPath: '/', headers: {}, cookies: [cookie], requestContext: { domainName: HOST, http: { method: 'GET' } } });
   assert.equal(inbox.statusCode, 200);
   assert.match(inbox.headers['content-security-policy'], /connect-src 'self' wss:\/\/chat\.example\.com/);
   assert.match(inbox.headers['content-security-policy'], /frame-ancestors 'none'/);
   const js = await http('GET', '/widget/chat.js');
-  assert.match(js.body, /^window\.WM_CHAT_DEFAULTS=\{"ws":"wss:\/\/chat\.example\.com\/prod","ownerName":"Pat"\}/);
+  assert.match(js.body, /^window\.MESSENGER_DEFAULTS=\{"ws":"wss:\/\/chat\.example\.com\/prod","ownerName":"Pat"\}/);
   assert.equal((await http('GET', '/widget/chat.css')).statusCode, 200);
   assert.equal((await http('GET', '/demo')).statusCode, 200);
   assert.equal((await http('GET', '/nope')).statusCode, 404);

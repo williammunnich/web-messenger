@@ -4,12 +4,12 @@
  *   npm run smoke                                    starts its own bench and tests that
  *   SMOKE_BASE=http://localhost:8790 npm run smoke   a bench you started (e.g. npm run dev:dynamo)
  *   SMOKE_BASE=https://<InboxUrl> SMOKE_TOKEN=<session> SMOKE_ORIGIN=https://<allowed site> npm run smoke
- *     a deployed stack. Get a session from the wm_s cookie after signing in to the inbox. It leaves one test conversation.
+ *     a deployed stack. Get a session from the msgr_s cookie after signing in to the inbox. It leaves one test conversation.
  * Exits 0 when every step passes and 1 on the first failure.
  *
  * @project web-messenger
  * @author Claude (Anthropic), written for and prompted by William Munnich
- * @date Last edited 2026-11-12
+ * @date Last edited 2026-11-14
  */
 import { spawn } from 'node:child_process';
 import crypto from 'node:crypto';

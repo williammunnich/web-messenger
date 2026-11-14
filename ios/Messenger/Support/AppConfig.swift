@@ -13,7 +13,7 @@ import Foundation
 /** Keys from docs/chat-protocol.md, plus the inbox host the owner types in once. */
 enum AppConfig {
     /** URL scheme the sign-in page redirects back to. */
-    static let callbackScheme = "wmchat"
+    static let callbackScheme = "webmessenger"
     /** Keychain account under which the owner's session token is stored. */
     static let tokenAccount = "session"
 

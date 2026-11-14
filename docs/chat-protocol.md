@@ -9,23 +9,23 @@ Everything the parts agree on: the widget (`aws/chat/src/public/chat.js`), the c
 | HTTP | `https://<api id>.execute-api.<region>.amazonaws.com`, or your `INBOX_DOMAIN` | the owner API (`/owner/*`), sign-in, the inbox (`/`), the widget (`/widget/*`) and a demo page (`/demo`) |
 | CHAT | `wss://<api id>.execute-api.<region>.amazonaws.com/prod`, or your `CHAT_DOMAIN` | the chat WebSocket. Visitors and the owner both connect here. |
 
-The widget learns CHAT from the `WM_CHAT_DEFAULTS` line the server puts at the top of `/widget/chat.js`. The inbox and the app learn it from `POST /owner/ticket`.
+The widget learns CHAT from the `MESSENGER_DEFAULTS` line the server puts at the top of `/widget/chat.js`. The inbox and the app learn it from `POST /owner/ticket`.
 
 ## Sign-in (one Google account for the inbox and the app)
 
-- **Inbox (web):** `GET /login` runs Google sign-in and sets the `wm_s` cookie on HTTP (12 hours). `GET /logout` clears it.
-- **App:** `ASWebAuthenticationSession` opens `HTTP/app/login?state=<random 32 chars>` with callback scheme `wmchat`. That runs the same Google sign-in. On success it redirects to `wmchat://auth?token=<session>&state=<same state>`. The app checks `state`, keeps `token` in the Keychain, and sends `Authorization: Bearer <token>` on every request. App sessions last 90 days. A 401 from anything means "sign in again".
+- **Inbox (web):** `GET /login` runs Google sign-in and sets the `msgr_s` cookie on HTTP (12 hours). `GET /logout` clears it.
+- **App:** `ASWebAuthenticationSession` opens `HTTP/app/login?state=<random 32 chars>` with callback scheme `webmessenger`. That runs the same Google sign-in. On success it redirects to `webmessenger://auth?token=<session>&state=<same state>`. The app checks `state`, keeps `token` in the Keychain, and sends `Authorization: Bearer <token>` on every request. App sessions last 90 days. A 401 from anything means "sign in again".
 - **Session format:** `b64url(json).hex(hmac_sha256(key, b64url(json)))`. The key is the SSM SecureString `/<prefix>/session-key`. The JSON is `{"e": email, "exp": unix, "k": "web"|"app"|"ws"}`. A session is valid if the MAC matches, `exp` is in the future and `e` equals `ALLOWED_EMAIL`.
 - **WebSocket ticket:** `POST HTTP/owner/ticket` returns `{"ticket": "<session with k=ws, 60 s>", "ws": "<CHAT address>"}`. The owner then connects to `CHAT?role=owner&ticket=<ticket>`.
 
 ## Visitor identity and opt-out (widget side)
 
-- `localStorage.wm_vid`: a random 22-character id (`[A-Za-z0-9]`), kept until the visitor opts out. It's only created when remembering is allowed (see below). Otherwise the id lives in `sessionStorage` (this tab only) and is never linked to earlier visits.
-- `localStorage.wm_optout = "1"` means: no `wm_vid` (it gets deleted), and chat still works anonymously for this tab. Global Privacy Control (`navigator.globalPrivacyControl === true`) counts as opted out unless the visitor clicks "remember me".
-- **Remembering:** the browser decides from its own time zone, before anything is stored. It asks first when the zone is `Europe/*` or one of the Atlantic zones of the EEA, UK or Switzerland (Reykjavik, Canary, Madeira, Azores, Faroe). There, the privacy line offers "Remember me" and nothing is stored until it's clicked (it sets `localStorage.wm_remember = "1"`). Everyone else is remembered unless they opt out.
-- `localStorage.wm_me = "1"` (visit `/#me` once; `/#notme` undoes it) marks the owner's own browser. Its visits are not counted or announced.
+- `localStorage.msgr_vid`: a random 22-character id (`[A-Za-z0-9]`), kept until the visitor opts out. It's only created when remembering is allowed (see below). Otherwise the id lives in `sessionStorage` (this tab only) and is never linked to earlier visits.
+- `localStorage.msgr_optout = "1"` means: no `msgr_vid` (it gets deleted), and chat still works anonymously for this tab. Global Privacy Control (`navigator.globalPrivacyControl === true`) counts as opted out unless the visitor clicks "remember me".
+- **Remembering:** the browser decides from its own time zone, before anything is stored. It asks first when the zone is `Europe/*` or one of the Atlantic zones of the EEA, UK or Switzerland (Reykjavik, Canary, Madeira, Azores, Faroe). There, the privacy line offers "Remember me" and nothing is stored until it's clicked (it sets `localStorage.msgr_remember = "1"`). Everyone else is remembered unless they opt out.
+- `localStorage.msgr_me = "1"` (visit `/#me` once; `/#notme` undoes it) marks the owner's own browser. Its visits are not counted or announced.
 - **Visits:** the widget's first `hello` on a page counts as a visit, and page loads within 30 minutes are the same visit. For remembered visitors the service keeps a **visitor profile** for 400 days after the last visit (`pk = VISITOR#<vid>`) with `first`, `last`, `visits`, `ips` (last 5), `devs` (last 3, as "Phone · iOS · Safari"), `refs` (last 5), `pages` (last 20), and any `name`, `email`, `phone`, `company`, `lead` from the chat.
-- **Privacy line:** add `<p id="wm-privacy-line"></p>` to a page and the widget fills it with the current state and an opt-out or undo button.
+- **Privacy line:** add `<p id="messenger-privacy-line"></p>` to a page and the widget fills it with the current state and an opt-out or undo button.
 
 ## Chat WebSocket (CHAT)
 
@@ -80,7 +80,7 @@ With a cookie session, every request other than `GET` must be `content-type: app
 
 ## The visitor's own data (HTTP, no sign-in)
 
-A visitor can see and delete everything stored under their visitor id. The widget calls these through `window.wmChat` ([embed.md](embed.md)).
+A visitor can see and delete everything stored under their visitor id. The widget calls these through `window.webMessenger` ([embed.md](embed.md)).
 
 | Method and path | Body | Returns |
 |---|---|---|
@@ -135,4 +135,4 @@ Sounds: `visit.caf`, `message.caf` and `message-long.caf`, in the app bundle (fr
 
 The app registers with `env: "sandbox"` in Debug builds (installed over the cable) and `"production"` otherwise. The chat service sends to `api.sandbox.push.apple.com` or `api.push.apple.com` accordingly. The APNs key (.p8) is kept in SSM `/<prefix>/apns-key`, with `/<prefix>/apns-key-id`, and `APNS_TEAM_ID` and `APNS_TOPIC` (the bundle id) set as environment variables.
 
-Bundle id: your own, set in `ios/Local.xcconfig`. URL scheme: `wmchat`.
+Bundle id: your own, set in `ios/Local.xcconfig`. URL scheme: `webmessenger`.

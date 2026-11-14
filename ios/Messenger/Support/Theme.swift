@@ -47,7 +47,7 @@ enum Theme {
 
     /**
      * The design of the app's font: `.default` (the system face), `.rounded`, `.serif` or `.monospaced`.
-     * Every text style goes through `Font.wm(_:)` and `Theme.uiFont(size:weight:)`, which read this value.
+     * Every text style goes through `Font.app(_:)` and `Theme.uiFont(size:weight:)`, which read this value.
      */
     static let fontDesign: Font.Design = .default
 
@@ -128,7 +128,7 @@ extension Font {
      * - Parameter style: The text style.
      * - Returns: The font.
      */
-    static func wm(_ style: Font.TextStyle) -> Font { .system(style, design: Theme.fontDesign) }
+    static func app(_ style: Font.TextStyle) -> Font { .system(style, design: Theme.fontDesign) }
 }
 
 /** Hex color support. */
@@ -156,7 +156,7 @@ extension UIColor {
 }
 
 /** Lists and forms on the theme's page colour instead of the system's. */
-struct WMScreen: ViewModifier {
+struct AppScreen: ViewModifier {
     /**
      * Hides the system list background and applies the paper background and ink text color.
      *
@@ -174,15 +174,15 @@ struct WMScreen: ViewModifier {
 /** Shorthand for the screen styling. */
 extension View {
     /**
-     * Applies `WMScreen`.
+     * Applies `AppScreen`.
      *
      * - Returns: The styled view.
      */
-    func wmScreen() -> some View { modifier(WMScreen()) }
+    func appScreen() -> some View { modifier(AppScreen()) }
 }
 
 /** A list section whose rows sit on the theme's plate color (SwiftUI only lets rows set their own background). */
-struct WMSection<Header: View, Content: View, Footer: View>: View {
+struct AppSection<Header: View, Content: View, Footer: View>: View {
     private let content: Content, header: Header, footer: Footer
 
     /**
@@ -201,15 +201,15 @@ struct WMSection<Header: View, Content: View, Footer: View>: View {
         Section {
             Group { content }.listRowBackground(Theme.plate)
         } header: {
-            header.font(.wm(.footnote)).foregroundStyle(Theme.quiet)
+            header.font(.app(.footnote)).foregroundStyle(Theme.quiet)
         } footer: {
-            footer.font(.wm(.footnote)).foregroundStyle(Theme.quiet)
+            footer.font(.app(.footnote)).foregroundStyle(Theme.quiet)
         }
     }
 }
 
 /** A section without header and footer. */
-extension WMSection where Header == EmptyView, Footer == EmptyView {
+extension AppSection where Header == EmptyView, Footer == EmptyView {
     /**
      * Creates a section from rows only.
      *
@@ -218,7 +218,7 @@ extension WMSection where Header == EmptyView, Footer == EmptyView {
     init(@ViewBuilder content: () -> Content) { self.init(content: content, header: { EmptyView() }, footer: { EmptyView() }) }
 }
 /** A section with a footer only. */
-extension WMSection where Header == EmptyView {
+extension AppSection where Header == EmptyView {
     /**
      * Creates a section with rows and a footer.
      *
@@ -228,7 +228,7 @@ extension WMSection where Header == EmptyView {
     init(@ViewBuilder content: () -> Content, @ViewBuilder footer: () -> Footer) { self.init(content: content, header: { EmptyView() }, footer: footer) }
 }
 /** A section with a header only. */
-extension WMSection where Footer == EmptyView {
+extension AppSection where Footer == EmptyView {
     /**
      * Creates a section with rows and a header.
      *
@@ -238,7 +238,7 @@ extension WMSection where Footer == EmptyView {
     init(@ViewBuilder content: () -> Content, @ViewBuilder header: () -> Header) { self.init(content: content, header: header, footer: { EmptyView() }) }
 }
 /** A section with a plain text title. */
-extension WMSection where Header == Text, Footer == EmptyView {
+extension AppSection where Header == Text, Footer == EmptyView {
     /**
      * Creates a section titled with a string.
      *
@@ -250,7 +250,7 @@ extension WMSection where Header == Text, Footer == EmptyView {
     }
 }
 /** A section with a localized text title. */
-extension WMSection where Header == Text, Footer == EmptyView {
+extension AppSection where Header == Text, Footer == EmptyView {
     /**
      * Creates a section titled with a localized string key.
      *

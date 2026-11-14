@@ -7,11 +7,11 @@
 # @usage sh ios/scripts/sync_sounds.sh
 # @exit 0 when the sounds are in place; 1 when a source sound is missing.
 # @author Claude (Anthropic), written for and prompted by William Munnich
-# @date Last edited 2026-11-12
+# @date Last edited 2026-11-14
 set -eu
 here="$(cd "$(dirname "$0")" && pwd)"
 src="$here/../../assets-src/sounds"
-dst="$here/../WMChat/Resources/Sounds"
+dst="$here/../Messenger/Resources/Sounds"
 mkdir -p "$dst"
 for f in visit.caf message.caf message-long.caf; do
   if [ ! -f "$src/$f" ]; then echo "error: missing $src/$f" >&2; exit 1; fi

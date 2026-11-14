@@ -32,9 +32,9 @@ struct ChatsView: View {
         NavigationStack(path: $model.chatPath) {
             List {
                 if let error = model.conversationsError {
-                    WMSection {
+                    AppSection {
                         Label(error, systemImage: "wifi.exclamationmark")
-                            .font(Font.wm(.footnote))
+                            .font(Font.app(.footnote))
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -46,7 +46,7 @@ struct ChatsView: View {
                                 .listRowBackground(Theme.plate)
                         }
                     } header: {
-                        Text("On the site now · tap to say hi").font(Font.wm(.footnote)).foregroundStyle(Theme.quiet)
+                        Text("On the site now · tap to say hi").font(Font.app(.footnote)).foregroundStyle(Theme.quiet)
                     }
                 }
                 ForEach(model.conversations) { c in
@@ -94,7 +94,7 @@ struct ChatsView: View {
                 }
             }
             .navigationTitle("Chats")
-            .wmScreen()
+            .appScreen()
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) { ConnectionBadge() }
             }
@@ -132,7 +132,7 @@ struct ConnectionBadge: View {
      */
     private func pill(_ text: String, color: Color) -> some View {
         Text(text)
-            .font(Font.wm(.caption).weight(.semibold))
+            .font(Font.app(.caption).weight(.semibold))
             .foregroundStyle(color)
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
@@ -195,28 +195,28 @@ struct ConversationRow: View {
             VStack(alignment: .leading, spacing: 3) {
                 HStack(alignment: .firstTextBaseline) {
                     Text(conversation.displayName)
-                        .font(Font.wm(.headline))
+                        .font(Font.app(.headline))
                         .lineLimit(1)
                     if conversation.blocked {
                         Image(systemName: "hand.raised.fill")
-                            .font(Font.wm(.caption))
+                            .font(Font.app(.caption))
                             .foregroundStyle(.secondary)
                             .accessibilityLabel("Blocked")
                     }
                     Spacer(minLength: 4)
                     Text(Fmt.listTime(ms: conversation.lastAt))
-                        .font(Font.wm(.subheadline))
+                        .font(Font.app(.subheadline))
                         .foregroundStyle(conversation.unread > 0 ? Theme.accent : Theme.quiet)
                 }
                 HStack(alignment: .top) {
                     preview
-                        .font(Font.wm(.subheadline))
+                        .font(Font.app(.subheadline))
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
                     Spacer(minLength: 4)
                     if conversation.unread > 0 {
                         Text("\(conversation.unread)")
-                            .font(Font.wm(.caption).bold())
+                            .font(Font.app(.caption).bold())
                             .foregroundStyle(Theme.onAccent)
                             .padding(.horizontal, 7)
                             .padding(.vertical, 2)
@@ -225,7 +225,7 @@ struct ConversationRow: View {
                     }
                 }
                 Text(details)
-                    .font(Font.wm(.caption))
+                    .font(Font.app(.caption))
                     .foregroundStyle(.tertiary)
                     .lineLimit(1)
             }
@@ -264,19 +264,19 @@ struct OnSiteRow: View {
             Avatar(conversation: visitor.asConversation)
             VStack(alignment: .leading, spacing: 3) {
                 Text(visitor.page)
-                    .font(Font.wm(.headline))
+                    .font(Font.app(.headline))
                     .lineLimit(1)
                     .truncationMode(.middle)
                 Text(Fmt.joined([visitor.place?.split(separator: ",").prefix(2).joined(separator: ","),
                                  visitor.device?.split(separator: "·").first.map { $0.trimmingCharacters(in: .whitespaces) },
                                  Fmt.visitLabel(visitor.visits)]))
-                    .font(Font.wm(.caption))
+                    .font(Font.app(.caption))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
             Spacer(minLength: 4)
             Label("Say hi", systemImage: "hand.wave")
-                .font(Font.wm(.subheadline).weight(.semibold))
+                .font(Font.app(.subheadline).weight(.semibold))
                 .foregroundStyle(Theme.onAccent)
                 .padding(.horizontal, 10).padding(.vertical, 5)
                 .background(Theme.accent, in: Capsule())

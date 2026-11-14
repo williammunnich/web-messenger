@@ -828,7 +828,7 @@ export function createService(deps) {
 
   // ------------------------------------------------------------------ the visitor's own data (docs/chat-protocol.md, "Your data")
   /**
-   * Collects everything stored under a visitor id. Anyone holding a visitor id (the random wm_vid in that browser)
+   * Collects everything stored under a visitor id. Anyone holding a visitor id (the random msgr_vid in that browser)
    * can see and delete what is stored under it.
    * @param {string} vid - Visitor id.
    * @returns {Promise<?Object>} The conversation, messages, profile and open-window count, or null for a malformed id.

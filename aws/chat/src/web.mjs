@@ -5,7 +5,7 @@
  *
  * @project web-messenger
  * @author Claude (Anthropic), written for and prompted by William Munnich
- * @date Last edited 2026-11-12
+ * @date Last edited 2026-11-14
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -53,7 +53,7 @@ export function createWeb({ auth, wsUrl, ownerName = '' }) {
 
   /**
    * Serves /, /demo, /widget/chat.js and /widget/chat.css (GET and HEAD only). The inbox redirects to /login
-   * when the owner is not signed in, and chat.js is prefixed with a line that sets window.WM_CHAT_DEFAULTS.
+   * when the owner is not signed in, and chat.js is prefixed with a line that sets window.MESSENGER_DEFAULTS.
    * @param {Object} req - The request.
    * @param {string} req.method - HTTP method.
    * @param {string} req.path - Request path.
@@ -69,7 +69,7 @@ export function createWeb({ auth, wsUrl, ownerName = '' }) {
     }
     if (p === '/demo') return page('demo.html', csp);
     if (p === '/widget/chat.js') {
-      const defaults = `window.WM_CHAT_DEFAULTS=${JSON.stringify({ ws: wsUrl, ownerName })};\n`;
+      const defaults = `window.MESSENGER_DEFAULTS=${JSON.stringify({ ws: wsUrl, ownerName })};\n`;
       return asset(defaults + read('chat.js', 'utf8'), 'text/javascript; charset=utf-8');
     }
     if (p === '/widget/chat.css') return asset(read('chat.css', 'utf8'), 'text/css; charset=utf-8');

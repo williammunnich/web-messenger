@@ -3,7 +3,7 @@
   @file demo.html
   A plain page that embeds the widget, served at /demo by web.mjs, for trying the chat before it is on a real site.
   It shows the three page hooks (docs/embed.md): data-chat-open, data-chat-prefill and data-lead, and the
-  #wm-privacy-line element that the widget fills with its opt-out line.
+  #messenger-privacy-line element that the widget fills with its opt-out line.
 
   @project web-messenger
   @author Claude (Anthropic), written for and prompted by William Munnich
@@ -37,7 +37,7 @@ a.button{display:inline-block;margin:.6em .4em 0 0;padding:.5em .9em;border:1px 
   <a class="button" href="#chat" data-chat-open data-chat-prefill="I have a question about " >Open with text</a>
   <a class="button" href="#chat" data-chat-open data-lead="Project" data-chat-prefill="I have a project: ">Project inquiry</a>
 </main>
-<p class="smallprint" id="wm-privacy-line"></p>
+<p class="smallprint" id="messenger-privacy-line"></p>
 <script src="/widget/chat.js" defer></script>
 </body>
 </html>

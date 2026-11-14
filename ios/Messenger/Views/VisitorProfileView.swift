@@ -5,7 +5,7 @@
  *
  * @project web-messenger
  * @author Claude (Anthropic), written for and prompted by William Munnich
- * @date Last edited 2026-11-12
+ * @date Last edited 2026-11-14
  */
 
 import SwiftUI
@@ -31,17 +31,17 @@ struct VisitorProfileView: View {
     var body: some View {
         NavigationStack {
             Form {
-                WMSection {
+                AppSection {
                     HStack(spacing: 14) {
                         Avatar(conversation: conversation)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(details?.profile?.name ?? conversation.displayName).font(Font.wm(.headline))
+                            Text(details?.profile?.name ?? conversation.displayName).font(Font.app(.headline))
                             if let email = details?.profile?.email ?? conversation.email {
                                 Link(email, destination: URL(string: "mailto:\(email)")!)
-                                    .font(Font.wm(.subheadline))
+                                    .font(Font.app(.subheadline))
                             }
                             Text(conversation.online ? "Online now" : Fmt.visitLabel(conversation.visits))
-                                .font(Font.wm(.subheadline))
+                                .font(Font.app(.subheadline))
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -49,11 +49,11 @@ struct VisitorProfileView: View {
                 }
 
                 if let error {
-                    WMSection { Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.secondary) }
+                    AppSection { Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.secondary) }
                 } else if details == nil {
-                    WMSection { HStack { Spacer(); ProgressView(); Spacer() } }
+                    AppSection { HStack { Spacer(); ProgressView(); Spacer() } }
                 } else if let p = details?.profile {
-                    WMSection("Visits") {
+                    AppSection("Visits") {
                         row("Visits", p.visits.map { "\($0)" })
                         row("Page views", p.views.map { "\($0)" })
                         row("Time on site", p.secs.map { Fmt.duration(seconds: $0) })
@@ -66,9 +66,9 @@ struct VisitorProfileView: View {
                     list("Pages", p.pages, icon: "doc.text")
                     list("IP addresses", p.ips, icon: "network", mono: true)
                     if !p.ipmatch.isEmpty {
-                        WMSection {
+                        AppSection {
                             ForEach(p.ipmatch, id: \.self) { other in
-                                Text(other).font(Font.wm(.footnote).monospaced())
+                                Text(other).font(Font.app(.footnote).monospaced())
                             }
                         } header: {
                             Text("Same IP, other visitor ids")
@@ -77,21 +77,21 @@ struct VisitorProfileView: View {
                         }
                     }
                 } else {
-                    WMSection {
+                    AppSection {
                         Text("No visitor profile. They may have opted out of being remembered.")
                             .foregroundStyle(.secondary)
                     }
                 }
 
                 if let visits = details?.visits, !visits.isEmpty {
-                    WMSection("Recent visits") {
+                    AppSection("Recent visits") {
                         ForEach(Array(visits.prefix(50).enumerated()), id: \.offset) { _, v in
                             VisitSummaryRow(visit: v)
                         }
                     }
                 }
 
-                WMSection {
+                AppSection {
                     Toggle(isOn: Binding(get: { conversation.blocked },
                                          set: { on in Task { await model.setBlocked(vid: vid, on) } })) {
                         Label("Block this visitor", systemImage: "hand.raised")
@@ -100,14 +100,14 @@ struct VisitorProfileView: View {
                     Text("A blocked visitor's messages are kept but never notify.")
                 }
 
-                WMSection {
+                AppSection {
                     LabeledContent("Visitor id") {
-                        Text(vid).font(Font.wm(.footnote).monospaced()).textSelection(.enabled)
+                        Text(vid).font(Font.app(.footnote).monospaced()).textSelection(.enabled)
                     }
                 }
             }
             .navigationTitle("Visitor")
-            .wmScreen()
+            .appScreen()
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
@@ -152,7 +152,7 @@ struct VisitorProfileView: View {
     @ViewBuilder
     private func list(_ title: LocalizedStringKey, _ items: [String], icon: String, mono: Bool = false) -> some View {
         if !items.isEmpty {
-            WMSection(title) {
+            AppSection(title) {
                 ForEach(Array(items.enumerated()), id: \.offset) { _, item in
                     Label {
                         Text(item).font(mono ? .body.monospaced() : .body).textSelection(.enabled)
@@ -196,16 +196,16 @@ struct VisitSummaryRow: View {
         let secs = first(["secs", "duration", "s_on_site", "seconds"])?.number
         VStack(alignment: .leading, spacing: 2) {
             if let when {
-                Text(when.formatted(date: .abbreviated, time: .shortened)).font(Font.wm(.subheadline).weight(.medium))
+                Text(when.formatted(date: .abbreviated, time: .shortened)).font(Font.app(.subheadline).weight(.medium))
             }
-            if let page { Text(page).font(Font.wm(.subheadline)).lineLimit(2) }
+            if let page { Text(page).font(Font.app(.subheadline)).lineLimit(2) }
             let extra = Fmt.joined([views.map { String(localized: "\(Int($0)) views") },
                                     secs.map { Fmt.duration(seconds: $0) },
                                     ref.map { String(localized: "from \($0)") }])
-            if !extra.isEmpty { Text(extra).font(Font.wm(.caption)).foregroundStyle(.secondary) }
+            if !extra.isEmpty { Text(extra).font(Font.app(.caption)).foregroundStyle(.secondary) }
             if when == nil && page == nil, case .object(let o) = visit {
                 Text(o.sorted { $0.key < $1.key }.compactMap { k, v in v.text.map { "\(k): \($0)" } }.joined(separator: " · "))
-                    .font(Font.wm(.caption).monospaced())
+                    .font(Font.app(.caption).monospaced())
             }
         }
     }

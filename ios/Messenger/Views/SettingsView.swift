@@ -47,13 +47,13 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 if let loadError {
-                    WMSection {
+                    AppSection {
                         Label(loadError, systemImage: "wifi.exclamationmark").foregroundStyle(.secondary)
                         Button("Try again") { Task { await load() } }
                     }
                 }
 
-                WMSection {
+                AppSection {
                     Toggle(isOn: Binding(get: { model.settings?.available ?? false },
                                          set: { on in Task { await model.updateSettings(SettingsPatch(available: on)) } })) {
                         Label {
@@ -68,7 +68,7 @@ struct SettingsView: View {
                     Text("On: the site's chat bubble says “Online” and expects a reply soon. Off: it says “Leave a message” and asks for an email. Messages notify either way.")
                 }
 
-                WMSection {
+                AppSection {
                     Picker("Visit notifications", selection: Binding(
                         get: { model.settings?.visitPings ?? .all },
                         set: { p in Task { await model.updateSettings(SettingsPatch(visitPings: p.rawValue)) } })) {
@@ -79,7 +79,7 @@ struct SettingsView: View {
                     Text("A push when someone loads a page (at most one per visitor every 30 minutes).")
                 }
 
-                WMSection {
+                AppSection {
                     TextField("Greeting", text: $greeting, axis: .vertical)
                         .lineLimit(2...6)
                     if greeting != (model.settings?.greeting ?? "") {
@@ -93,7 +93,7 @@ struct SettingsView: View {
                     Text("The first thing visitors see when they open the chat bubble.")
                 }
 
-                WMSection {
+                AppSection {
                     LabeledContent("Permission", value: permissionText)
                     LabeledContent("This device", value: model.pushStatus)
                     // what iOS will actually do with a chat alert (read from iOS, refreshed each time Settings opens)
@@ -124,7 +124,7 @@ struct SettingsView: View {
                     if sendingTest { Text("Sending…") } else if let testResult { Text(testResult) }
                 }
 
-                WMSection {
+                AppSection {
                     if let host = model.dashHost, let url = AppConfig.dashURL(host: host) {
                         Link(destination: url) {
                             Label("Open inbox in Safari", systemImage: "safari")
@@ -136,8 +136,8 @@ struct SettingsView: View {
                         } label: {
                             HStack {
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(copied ? "Copied" : "Inbox link · tap to copy").font(Font.wm(.subheadline))
-                                    Text(url.absoluteString).font(Font.wm(.caption).monospaced()).foregroundStyle(Theme.quiet)
+                                    Text(copied ? "Copied" : "Inbox link · tap to copy").font(Font.app(.subheadline))
+                                    Text(url.absoluteString).font(Font.app(.caption).monospaced()).foregroundStyle(Theme.quiet)
                                         .lineLimit(1).truncationMode(.middle)
                                 }
                                 Spacer()
@@ -152,27 +152,27 @@ struct SettingsView: View {
                     Text("Inbox")
                 }
 
-                WMSection {
+                AppSection {
                     Toggle("Demo mode", isOn: Binding(get: { model.demoMode }, set: { model.setDemoMode($0) }))
                 } footer: {
                     Text("Made-up chats and visitors for trying the app. Turning it off returns to the real server (sign in if needed).")
                 }
 
                 if model.isSignedIn {
-                    WMSection {
+                    AppSection {
                         Button("Sign out", role: .destructive) { confirmSignOut = true }
                     }
                 }
 
-                WMSection {
+                AppSection {
                 } footer: {
-                    Text("WM Chat \(AppConfig.appVersion) · push env: \(AppConfig.pushEnvironment)")
+                    Text("Messenger \(AppConfig.appVersion) · push env: \(AppConfig.pushEnvironment)")
                         .frame(maxWidth: .infinity)
                 }
             }
             .navigationTitle("Settings")
-            .wmScreen()
-            .confirmationDialog("Sign out of WM Chat?", isPresented: $confirmSignOut, titleVisibility: .visible) {
+            .appScreen()
+            .confirmationDialog("Sign out of Messenger?", isPresented: $confirmSignOut, titleVisibility: .visible) {
                 Button("Sign out", role: .destructive) { Task { await model.signOut() } }
             } message: {
                 Text("This phone stops getting chat and visit notifications until you sign in again.")

@@ -12,10 +12,10 @@ You need Xcode and XcodeGen (`brew install xcodegen`). The `.xcodeproj` is gener
 cd ios
 cp Local.xcconfig.example Local.xcconfig     # your team id and bundle id; gitignored
 xcodegen
-open WMChat.xcodeproj
+open Messenger.xcodeproj
 ```
 
-Keep the repo out of cloud-synced folders such as iCloud Drive, Dropbox or Nextcloud. They can break the generated project (you'd see a `WMChat 2.xcodeproj`) and drop file permissions.
+Keep the repo out of cloud-synced folders such as iCloud Drive, Dropbox or Nextcloud. They can break the generated project (you'd see a `Messenger 2.xcodeproj`) and drop file permissions.
 
 ## Try it without a server
 
@@ -30,23 +30,23 @@ Start `npm run dev` in the repo root, run the app in the Simulator, type `localh
 Your Apple developer team must be signed in to Xcode (Xcode > Settings > Accounts). Unlock the phone, turn on Developer Mode, and trust this Mac. `xcrun devicectl list devices` shows your device id.
 
 ```sh
-xcodebuild -project WMChat.xcodeproj -scheme WMChat -configuration Debug \
+xcodebuild -project Messenger.xcodeproj -scheme Messenger -configuration Debug \
   -destination 'id=<device id>' -derivedDataPath build/device \
   -allowProvisioningUpdates build
 xcrun devicectl device install app --device <device id> \
-  build/device/Build/Products/Debug-iphoneos/WMChat.app
+  build/device/Build/Products/Debug-iphoneos/Messenger.app
 ```
 
 You can also press Run in Xcode. The first device build creates the App ID with the **Push Notifications** and **Time Sensitive Notifications** capabilities. Use a **Debug** build: it registers its push token with `env: "sandbox"`, which matches the development `aps-environment`. A Release build registers as `"production"`.
 
 ### Build helpers
 
-- `scripts/sync_sounds.sh` copies the sounds from `assets-src/sounds/` into `WMChat/Resources/Sounds/`. It runs as the first build phase.
-- `scripts/make_icon.swift` redraws the 1024 px icon, a plain speech bubble on the accent colour: `swift scripts/make_icon.swift WMChat/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png`. It is a placeholder; replace the PNG with your own artwork.
+- `scripts/sync_sounds.sh` copies the sounds from `assets-src/sounds/` into `Messenger/Resources/Sounds/`. It runs as the first build phase.
+- `scripts/make_icon.swift` redraws the 1024 px icon, a plain speech bubble on the accent colour: `swift scripts/make_icon.swift Messenger/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png`. It is a placeholder; replace the PNG with your own artwork.
 
 ## Theming
 
-The app ships with the same plain look as the widget: light and dark, a blue accent, the system font. To change it, edit one file, `WMChat/Support/Theme.swift`:
+The app ships with the same plain look as the widget: light and dark, a blue accent, the system font. To change it, edit one file, `Messenger/Support/Theme.swift`:
 
 - **Colours:** the `static let` lines at the top of `Theme`. Each takes a light-mode and a dark-mode value, for example `static let accent = dynamic(light: 0x2563EB, dark: 0x60A5FA)`.
 
@@ -60,14 +60,14 @@ The app ships with the same plain look as the widget: light and dark, a blue acc
 
 - **Font:** `Theme.fontDesign` (`.default`, `.rounded`, `.serif` or `.monospaced`).
 
-No other Swift file contains a colour value. Two things sit outside that file and should be kept in step with it: `WMChat/Assets.xcassets/AccentColor.colorset/Contents.json` (the accent iOS reads itself; the same two values as `Theme.accent`) and the app icon (`scripts/make_icon.swift`, under "Build helpers").
+No other Swift file contains a colour value. Two things sit outside that file and should be kept in step with it: `Messenger/Assets.xcassets/AccentColor.colorset/Contents.json` (the accent iOS reads itself; the same two values as `Theme.accent`) and the app icon (`scripts/make_icon.swift`, under "Build helpers").
 
 ## Screens
 
 **Setup** (first run, after sign-out or after any 401): enter the `InboxUrl` from the deploy
 (https:// and paths are stripped). "Sign in with Google" opens
 `<host>/app/login?state=<32 random chars>` in `ASWebAuthenticationSession`. The app accepts only
-`wmchat://auth?token=…&state=<same>`. It keeps the token in the Keychain (this device only, readable after first unlock,
+`webmessenger://auth?token=…&state=<same>`. It keeps the token in the Keychain (this device only, readable after first unlock,
 so notification actions work while the phone is locked). Demo mode can be switched on here.
 
 **Chats**: the conversation list (`GET /owner/conversations`) shows the name or "Visitor from <city>", a
@@ -127,11 +127,11 @@ Debug-only launch arguments for screenshots: `-screenshotTab settings`,
 ```
 project.yml                  XcodeGen spec (entitlements, Info.plist, sound sync phase)
 Config.xcconfig              committed defaults; includes your Local.xcconfig
-WMChat/App                   app entry, AppModel (state + events), push/notification delegate
-WMChat/Networking            OwnerAPI (HTTP), ChatBackend protocol, LiveBackend + OwnerSocket
-WMChat/Demo                  DemoBackend + sample data
-WMChat/Model                 contract types (lenient decoding)
-WMChat/Views                 Setup, Chats, Thread, Visitor profile, Settings
-WMChat/Support               config, Keychain, formatting, sounds/haptics, Theme.swift (every colour and the font)
+Messenger/App                   app entry, AppModel (state + events), push/notification delegate
+Messenger/Networking            OwnerAPI (HTTP), ChatBackend protocol, LiveBackend + OwnerSocket
+Messenger/Demo                  DemoBackend + sample data
+Messenger/Model                 contract types (lenient decoding)
+Messenger/Views                 Setup, Chats, Thread, Visitor profile, Settings
+Messenger/Support               config, Keychain, formatting, sounds/haptics, Theme.swift (every colour and the font)
 scripts/                     make_icon.swift, sync_sounds.sh
 ```

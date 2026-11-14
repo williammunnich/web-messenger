@@ -1,11 +1,11 @@
 /**
  * @file auth.mjs
- * Google sign-in for the one owner: the web inbox gets a wm_s cookie, the iPhone app gets a token at
- * wmchat://auth?token=…&state=… (docs/chat-protocol.md). Sessions are the signed format in session.mjs.
+ * Google sign-in for the one owner: the web inbox gets a msgr_s cookie, the iPhone app gets a token at
+ * webmessenger://auth?token=…&state=… (docs/chat-protocol.md). Sessions are the signed format in session.mjs.
  *
  * @project web-messenger
  * @author Claude (Anthropic), written for and prompted by William Munnich
- * @date Last edited 2026-11-12
+ * @date Last edited 2026-11-14
  */
 import crypto from 'node:crypto';
 import { sign, verify, ownerFrom } from './session.mjs';
@@ -71,7 +71,7 @@ export function createAuth(deps) {
   const redirectUri = host => `https://${host}/oauth2/callback`;
 
   /**
-   * Starts sign-in: stores state, nonce and the PKCE verifier in a signed wm_o cookie and redirects to Google.
+   * Starts sign-in: stores state, nonce and the PKCE verifier in a signed msgr_o cookie and redirects to Google.
    * @param {Object} args - Request details.
    * @param {string} args.host - The host the request came in on.
    * @param {string} [args.appState] - The iPhone app's state value, when the app started the sign-in.
@@ -84,12 +84,12 @@ export function createAuth(deps) {
     const q = new URLSearchParams({ client_id: clientId, redirect_uri: redirectUri(host), response_type: 'code', scope: 'openid email',
       state: st.state, nonce: st.nonce, prompt: 'select_account', code_challenge_method: 'S256',
       code_challenge: crypto.createHash('sha256').update(verifier).digest('base64url') });
-    return redirect('https://accounts.google.com/o/oauth2/v2/auth?' + q, [cookie('wm_o', sign(st, await sessionKey()), STATE_S)]);
+    return redirect('https://accounts.google.com/o/oauth2/v2/auth?' + q, [cookie('msgr_o', sign(st, await sessionKey()), STATE_S)]);
   }
 
   /**
    * Finishes sign-in: checks the state cookie, exchanges the code with Google, checks the ID token claims and
-   * the allowed email, then issues a web session cookie or redirects the app to wmchat://auth with a token.
+   * the allowed email, then issues a web session cookie or redirects the app to webmessenger://auth with a token.
    * @param {Object} args - Request details.
    * @param {string} args.host - The host the request came in on.
    * @param {Object} args.query - Query parameters (`code`, `state`).
@@ -99,7 +99,7 @@ export function createAuth(deps) {
    */
   async function callback({ host, query, cookies, ip }) {
     const key = await sessionKey();
-    const raw = cookies.map(c => c.trim()).find(c => c.startsWith('wm_o='))?.slice(5);
+    const raw = cookies.map(c => c.trim()).find(c => c.startsWith('msgr_o='))?.slice('msgr_o='.length);   // the value after the cookie's name
     const st = verify(raw, key, now());
     const same = (a, b) => a.length === b.length && crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
     if (!st || !query.code || !same(String(query.state || ''), String(st.state || ''))) {
@@ -122,14 +122,14 @@ export function createAuth(deps) {
     const email = String(claims.email || '').toLowerCase();
     const ok = ['accounts.google.com', 'https://accounts.google.com'].includes(claims.iss) && claims.aud === clientId && claims.exp > sec()
       && claims.nonce === st.nonce && (claims.email_verified === true || claims.email_verified === 'true') && allowedEmail && email === allowedEmail.toLowerCase();
-    const clear = cookie('wm_o', '', 0);
+    const clear = cookie('msgr_o', '', 0);
     if (!ok) { log({ event: 'login_refused', email, ip }); return text(403, 'This Google account is not allowed here.', [clear]); }
     log({ event: 'login_ok', email, ip, app: !!st.app });
     if (st.app) {
       const token = sign({ e: email, k: 'app', exp: sec() + APP_DAYS * 86400 }, key);
-      return redirect('wmchat://auth?' + new URLSearchParams({ token, state: st.app }), [clear]);
+      return redirect('webmessenger://auth?' + new URLSearchParams({ token, state: st.app }), [clear]);
     }
-    return redirect('/', [cookie('wm_s', sign({ e: email, k: 'web', exp: sec() + WEB_HOURS * 3600 }, key), WEB_HOURS * 3600), clear]);
+    return redirect('/', [cookie('msgr_s', sign({ e: email, k: 'web', exp: sec() + WEB_HOURS * 3600 }, key), WEB_HOURS * 3600), clear]);
   }
 
   /**
@@ -153,7 +153,7 @@ export function createAuth(deps) {
       return login({ host, appState: query.state });
     }
     if (path === '/oauth2/callback') return callback({ host, query, cookies: jar, ip });
-    if (path === '/logout') return redirect('/login', [cookie('wm_s', '', 0)]);
+    if (path === '/logout') return redirect('/login', [cookie('msgr_s', '', 0)]);
     return null;
   }
   /**

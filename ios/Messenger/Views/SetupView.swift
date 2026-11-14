@@ -29,15 +29,15 @@ struct SetupView: View {
     var body: some View {
         NavigationStack {
             Form {
-                WMSection {
+                AppSection {
                     VStack(spacing: 12) {
                         Image(systemName: "bubble.left.and.text.bubble.right.fill")
                             .font(.system(.largeTitle))
                             .foregroundStyle(.tint)
                         Text("Messenger")
-                            .font(Font.wm(.title).bold())
+                            .font(Font.app(.title).bold())
                         Text("Live chat for your website.")
-                            .font(Font.wm(.subheadline))
+                            .font(Font.app(.subheadline))
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
                     }
@@ -47,19 +47,19 @@ struct SetupView: View {
                 }
 
                 if let notice = model.signInNotice {
-                    WMSection {
+                    AppSection {
                         Label(notice, systemImage: "exclamationmark.circle.fill")
                             .foregroundStyle(Theme.warning)
                     }
                 }
 
-                WMSection {
+                AppSection {
                     TextField("abc123.execute-api.us-east-1.amazonaws.com", text: $hostText)
                         .keyboardType(.URL)
                         .textContentType(.URL)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
-                        .font(Font.wm(.body).monospaced())
+                        .font(Font.app(.body).monospaced())
                 } header: {
                     Text("Inbox address")
                 } footer: {
@@ -71,7 +71,7 @@ struct SetupView: View {
                     }
                 }
 
-                WMSection {
+                AppSection {
                     Button {
                         Task { await signIn() }
                     } label: {
@@ -79,7 +79,7 @@ struct SetupView: View {
                             Spacer()
                             if signingIn { ProgressView().padding(.trailing, 6) }
                             Label("Sign in with Google", systemImage: "person.badge.key.fill")
-                                .font(Font.wm(.headline))
+                                .font(Font.app(.headline))
                             Spacer()
                         }
                     }
@@ -88,14 +88,14 @@ struct SetupView: View {
                     if let error { Text(error).foregroundStyle(Theme.danger) }
                 }
 
-                WMSection {
+                AppSection {
                     Toggle("Demo mode", isOn: Binding(get: { model.demoMode }, set: { model.setDemoMode($0) }))
                 } footer: {
                     Text("Try the app with made-up chats and visitors. Nothing is sent to the server.")
                 }
             }
             .navigationTitle("Welcome")
-            .wmScreen()
+            .appScreen()
             .navigationBarTitleDisplayMode(.inline)
         }
     }

@@ -107,7 +107,7 @@ Set any of these before the script tag:
 
 ```html
 <script>
-  window.WM_CONFIG = {
+  window.MESSENGER_CONFIG = {
     ownerName: "Your Name",
     ownerPhoto: "https://example.com/you.jpg",
     privacyUrl: "/privacy.html",
@@ -118,24 +118,24 @@ Set any of these before the script tag:
 
 Add `data-chat-open` to any link to make it open the chat. `data-chat-prefill="text"` fills in the message, and `data-lead="Project"` asks for contact details.
 
-Add `<p id="wm-privacy-line"></p>` to your footer for the opt-out line. Visit `yoursite.com/#me` once on your own devices so your visits aren't announced.
+Add `<p id="messenger-privacy-line"></p>` to your footer for the opt-out line. Visit `yoursite.com/#me` once on your own devices so your visits aren't announced.
 
 ## Theming
 
 The project ships with one plain default look: light and dark, a blue accent, the system font. It is made to be replaced.
 
-**The widget.** Every colour and the font are CSS variables on `.wmc`. They are all declared in one commented block at the top of [`aws/chat/src/public/chat.css`](aws/chat/src/public/chat.css); nothing else in the widget's CSS or JavaScript contains a colour. Restyle it from the page that embeds it, anywhere in that page's own CSS, without touching the widget's files:
+**The widget.** Every colour and the font are CSS variables on `.msgr`. They are all declared in one commented block at the top of [`aws/chat/src/public/chat.css`](aws/chat/src/public/chat.css); nothing else in the widget's CSS or JavaScript contains a colour. Restyle it from the page that embeds it, anywhere in that page's own CSS, without touching the widget's files:
 
 ```html
 <style>
-  .wmc {
+  .msgr {
     --accent: #0f766e;  --on-accent: #ffffff;   /* launcher, header, the visitor's bubbles, send button */
     --paper: #fffdf8;   --plate: #f4efe6;       /* panel background, message list background */
     --ink: #1c1917;     --quiet: #6b645c;       /* text, secondary text */
     --font: Georgia, "Times New Roman", serif;
   }
   @media (prefers-color-scheme: dark) {
-    .wmc { --accent: #2dd4bf; --on-accent: #042f2e; --paper: #1c1917; --plate: #141210; --ink: #f1ece4; --quiet: #a8a29a; }
+    .msgr { --accent: #2dd4bf; --on-accent: #042f2e; --paper: #1c1917; --plate: #141210; --ink: #f1ece4; --quiet: #a8a29a; }
   }
 </style>
 ```
@@ -158,7 +158,7 @@ Light is the default and dark follows the visitor's system setting (`prefers-col
 
 **The inbox page.** Its colours are the variables in the `:root` block at the top of [`aws/chat/src/public/inbox.html`](aws/chat/src/public/inbox.html).
 
-**The iPhone app.** Its colours and font are in one file, [`ios/WMChat/Support/Theme.swift`](ios/WMChat/Support/Theme.swift); see [ios/README.md](ios/README.md#theming).
+**The iPhone app.** Its colours and font are in one file, [`ios/Messenger/Support/Theme.swift`](ios/Messenger/Support/Theme.swift); see [ios/README.md](ios/README.md#theming).
 
 ## Privacy: what you should tell your visitors
 
@@ -167,7 +167,7 @@ If you run this on a public site, your privacy policy should say so, and the law
 - **Live typing.** The owner sees a message as it's typed, before it's sent. The widget says so under the message box.
 - **Return visits.** A random id in `localStorage` remembers visitors for 400 days after their last visit, along with their device type, pages, referrers and IP addresses.
 - **Consent.** Visitors can opt out, Global Privacy Control is honored, and time zones in the EEA, UK and Switzerland must opt in first. That check uses the browser's time zone, so treat it as a sensible default rather than legal compliance.
-- **See and delete.** A visitor can download everything stored under their id and delete it: `window.wmChat.myData()` and `window.wmChat.forget()`, backed by `POST /visitor/data` and `POST /visitor/forget` ([docs/chat-protocol.md](docs/chat-protocol.md#the-visitors-own-data-http-no-sign-in)). Put buttons for them on your privacy page. What can't be deleted by id (short-lived spam counters, 90-day Lambda logs) is listed there too.
+- **See and delete.** A visitor can download everything stored under their id and delete it: `window.webMessenger.myData()` and `window.webMessenger.forget()`, backed by `POST /visitor/data` and `POST /visitor/forget` ([docs/chat-protocol.md](docs/chat-protocol.md#the-visitors-own-data-http-no-sign-in)). Put buttons for them on your privacy page. What can't be deleted by id (short-lived spam counters, 90-day Lambda logs) is listed there too.
 
 ## Cost
 
